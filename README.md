@@ -1,62 +1,77 @@
-# expense_tracker
- Expense tracker, built with FastAPI and SQLite
-Setup Instructions
+#  Expense Tracker
+
+A lightweight personal finance tracker built with **FastAPI** and **SQLite**, designed to help university students and young professionals easily track their income and expenses.  
+The app provides a clean dashboard with charts and summaries to help users understand their spending habits and manage their budgets more effectively.
+
+---
+
+##  Overview
+
+The **Expense Tracker** allows users to:
+- Add, update, and delete **income** and **expense** records  
+- View total income, expenses, and remaining balance  
+- Visualize spending categories using **Chart.js**  
+- See recent transactions on a clean and responsive dashboard  
+
+This project was developed following the **Waterfall SDLC model**, with clear phases for requirements, design, implementation, testing, and deployment.  
+It was designed to be realistic, maintainable, and scalable for future use by university students or young professionals.
+
+---
+
+##  Setup Instructions
 
 Follow these steps to run the Expense Tracker locally.
 
-1️Prerequisites
+---
 
-Make sure you have:
+###  Prerequisites
 
-Python 3.9+
+Make sure you have the following installed:
 
-pip (comes with Python)
+-  **Python 3.9+**
+-  **pip** (comes with Python)
+-  **Git**
 
-Git
+---
 
-(Optional) Docker (for containerized setup)
-
- Clone the Repository
+###  Clone the Repository
 
 Open a terminal and run:
 
+```bash
 git clone https://github.com/Qamarr1/expense_tracker.git
 cd expense_tracker
 
- Create and Activate a Virtual Environment
-On macOS / Linux:
+### Create and Activate a Virtual Environment
+-On macOS / Linux:
 python3 -m venv venv
 source venv/bin/activate
 
-On Windows (PowerShell):
+-On Windows (PowerShell):
 python -m venv venv
 venv\Scripts\activate
 
-
 Once activated, you should see (venv) at the start of your terminal prompt.
 
- Install Dependencies
 
-Install the required packages from requirements.txt:
+## 📦 Install Dependencies
+pip install --upgrade pip then cd /path/to/the/project 
+Install the required packages from `requirements.txt`:
 
+```bash
 pip install -r requirements.txt
 
+### Main Frameworks Used
+-Library	Purpose
+  fastapi	Web framework
+  uvicorn	ASGI app runner
+  sqlmodel	ORM for SQLite
+  jinja2	HTML templating
+  python-multipart	Handles HTML forms
+  Additional libraries (like Pydantic, Starlette, and SQLAlchemy) are automatically installed as dependencies.
 
- Main frameworks used:
 
-fastapi → Web framework
-
-uvicorn → App runner
-
-sqlmodel → ORM for SQLite
-
-jinja2 → HTML templating
-
-python-multipart → Handles HTML forms
-
-Additional libraries (Pydantic, Starlette, SQLAlchemy, etc.) are automatically installed as dependencies.
-
- Initialize the Database
+##Initialize the Database
 
 No manual SQL setup is needed!
 When you first run the app, it automatically creates the database file expense.db and adds default categories like “Food”, “Transport”, etc.
@@ -72,35 +87,27 @@ Start the FastAPI server:
 uvicorn main:app --reload
 
 
-If your code is in a folder (e.g. /app/main.py), then:
+### If your code is in a folder (e.g. /app/main.py), then:
 
-uvicorn app.main:app --reload
-
-
-When it starts successfully, you’ll see:
-
-Application startup complete.
+--uvicorn app.main:app --reload
 
 
-Then visit these URLs:
+### When it starts successfully, you’ll see:
+--Application startup complete.
 
-Page	URL
-Health Check (API root)	http://127.0.0.1:8000
 
-Dashboard	http://127.0.0.1:8000/dashboard
+### Then visit these URLs:
 
-Income Page	http://127.0.0.1:8000/income-ui
+ -Page	URL:
+   Health Check (API root)	http://127.0.0.1:8000
+   Dashboard	http://127.0.0.1:8000/dashboard
+   Income Page	http://127.0.0.1:8000/income-ui
+   Expenses Page	http://127.0.0.1:8000/expenses-ui
+   Interactive API Docs	http://127.0.0.1:8000/docs
 
-Expenses Page	http://127.0.0.1:8000/expenses-ui
-
-Interactive API Docs	http://127.0.0.1:8000/docs
- Stop and Deactivate
-
-To stop the server, press:
-
-CTRL + C
-
+Stop and Deactivate
+###To stop the server, press:
+-CTRL + C
 
 To deactivate your virtual environment:
-
-deactivate
+-deactivate
