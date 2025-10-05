@@ -1,5 +1,5 @@
 #Creating a minimal FastAPI app with a health endpoint
-from fastapi import FastAPI
+from fastapi import FastAPI,HTTPException, Depends
 from sqlmodel import SQLModel, create_engine, Session, Field, select 
 from typing import Optional, List, Dict
 from datetime import date
@@ -112,15 +112,199 @@ def on_startup():
         
         if not existing_category:
             # Add 5 default expense categories
-            session.add(Category(name="Food"))
+            session.add(Category(name="Food & Dining"))
+            session.add(Category(name="Groceries"))
             session.add(Category(name="Transport"))
             session.add(Category(name="Shopping"))
-            session.add(Category(name="Bills"))
+            session.add(Category(name="Bills & Utilities"))
             session.add(Category(name="Entertainment"))
+            session.add(Category(name="Health & Medical"))
+            session.add(Category(name="Education"))
+            session.add(Category(name="Travel"))
+            session.add(Category(name="Gifts"))
+            session.add(Category(name="Personal Care"))
+            session.add(Category(name="Subscriptions"))
+            session.add(Category(name="Insurance"))
+            session.add(Category(name="Savings"))
+            session.add(Category(name="Other"))
             session.commit()
-            print("Added 5 default categories")
+            print("Added 15 default categories")
         else:
             print("Categories already exist, skipping seed")
+
+# CATEGORY ENDPOINTS
+
+# List all categories so the UI can fill a dropdown (sorted by name).
+@app.get("/api/categories", response_model=list[Category])
+def list_categories(session: Session = Depends(get_session)):
+    return session.exec(select(Category).order_by(Category.name)).all()
+
+# Create a new category (e.g., "Food"). I prevent duplicates by checking the name first.
+@app.post("/api/categories", response_model=Category, status_code=201)
+def create_category(payload: CategoryCreate, session: Session = Depends(get_session)):
+    existing = session.exec(select(Category).where(Category.name == payload.name)).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Category already exists")
+    row = Category(name=payload.name)
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return row
+
+# INCOME ENDPOINTS
+# Create income. The client does NOT send "type"; the server sets type='income'.
+@app.post("/api/income", response_model=Transaction, status_code=201)
+def create_income(payload: IncomeCreate, session: Session = Depends(get_session)):
+    row = Transaction(
+        name=payload.name,
+        amount=payload.amount,
+        date=payload.date,
+        note=payload.note,
+        type="income",
+        category_id=None,  # income does not use a category
+    )
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return row
+
+# Return all income transactions, newest first (for tables/charts on the dashboard).
+@app.get("/api/income", response_model=list[Transaction])
+def list_income(session: Session = Depends(get_session)):
+    stmt = (
+        select(Transaction)
+        .where(Transaction.type == "income")
+        .order_by(Transaction.date.desc())
+    )
+    return session.exec(stmt).all()
+
+# Partially update an income by id. Only the fields provided in the request are changed.
+@app.patch("/api/income/{income_id}", response_model=Transaction)
+def update_income(
+    income_id: int,
+    payload: TransactionUpdate,
+    session: Session = Depends(get_session),
+):
+    transaction = session.get(Transaction, income_id)
+    if not transaction or transaction.type != "income":
+        raise HTTPException(status_code=404, detail="Income not found")
+
+    if payload.name is not None:
+        transaction.name = payload.name
+    if payload.amount is not None:
+        transaction.amount = payload.amount
+    if payload.date is not None:
+        transaction.date = payload.date
+    if payload.note is not None:
+        transaction.note = payload.note
+
+    session.add(transaction)
+    session.commit()
+    session.refresh(transaction)
+    return transaction
+
+# Delete an income by id.
+@app.delete("/api/income/{income_id}", status_code=204)
+def delete_income(income_id: int, session: Session = Depends(get_session)):
+    transaction = session.get(Transaction, income_id)
+    if not transaction or transaction.type != "income":
+        raise HTTPException(status_code=404, detail="Income not found")
+    session.delete(transaction)
+    session.commit()
+    return None
+
+# EXPENSE ENDPOINTS
+# Create expense. Must reference a valid category (I validate the category_id exists).
+@app.post("/api/expenses", response_model=Transaction, status_code=201)
+def create_expense(payload: ExpenseCreate, session: Session = Depends(get_session)):
+    if not session.get(Category, payload.category_id):
+        raise HTTPException(status_code=400, detail="Category does not exist")
+
+    row = Transaction(
+        name=payload.name,
+        amount=payload.amount,
+        date=payload.date,
+        note=payload.note,
+        type="expense",
+        category_id=payload.category_id,
+    )
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return row
+
+# Return all expenses, newest first (for tables/charts on the dashboard).
+@app.get("/api/expenses", response_model=list[Transaction])
+def list_expenses(session: Session = Depends(get_session)):
+    stmt = (
+        select(Transaction)
+        .where(Transaction.type == "expense")
+        .order_by(Transaction.date.desc())
+    )
+    return session.exec(stmt).all()
+
+# Partially update an expense by id. If category_id is provided, we validate it exists.
+@app.patch("/api/expenses/{expense_id}", response_model=Transaction)
+def update_expense(
+    expense_id: int,
+    payload: TransactionUpdate,
+    session: Session = Depends(get_session),
+):
+    transaction = session.get(Transaction, expense_id)
+    if not transaction or transaction.type != "expense":
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    if payload.name is not None:
+        transaction.name = payload.name
+    if payload.amount is not None:
+        transaction.amount = payload.amount
+    if payload.date is not None:
+        transaction.date = payload.date
+    if payload.note is not None:
+        transaction.note = payload.note
+    if payload.category_id is not None:
+        if not session.get(Category, payload.category_id):
+            raise HTTPException(status_code=400, detail="Category does not exist")
+        transaction.category_id = payload.category_id
+
+    session.add(transaction)
+    session.commit()
+    session.refresh(transaction)
+    return transaction
+
+# Delete an expense by id.
+@app.delete("/api/expenses/{expense_id}", status_code=204)
+def delete_expense(expense_id: int, session: Session = Depends(get_session)):
+    transaction = session.get(Transaction, expense_id)
+    if not transaction or transaction.type != "expense":
+        raise HTTPException(status_code=404, detail="Expense not found")
+    session.delete(transaction)
+    session.commit()
+    return None
+
+# SUMMARY / STATS
+# Compute totals for income and expenses, and the balance (income - expenses).
+# We convert Decimal to float for JSON responses.
+@app.get("/api/stats/summary")
+def get_summary(session: Session = Depends(get_session)) -> Dict[str, float]:
+    incomes = session.exec(
+        select(Transaction).where(Transaction.type == "income")
+    ).all()
+    expenses = session.exec(
+        select(Transaction).where(Transaction.type == "expense")
+    ).all()
+
+    income_total = float(sum(t.amount for t in incomes))
+    expense_total = float(sum(t.amount for t in expenses))
+    balance = income_total - expense_total
+
+    return {
+        "income_total": round(income_total, 2),
+        "expense_total": round(expense_total, 2),
+        "balance": round(balance, 2),
+    }
+
+
 
 
 
