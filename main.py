@@ -47,7 +47,6 @@ class Transaction(SQLModel, table=True):
     """Main table that stores all transactions.
     It records both income and expenses.
     - 'type' = either 'income' or 'expense'
-    - 'account_id' = which account this transaction belongs to (required for both)
     - 'category_id' = only for expenses (so it can be left empty for income). """
 
     id: Optional[int] = Field(default=None, primary_key=True) # unique ID
@@ -78,7 +77,7 @@ class IncomeCreate(SQLModel):
 
 class ExpenseCreate(SQLModel):
     """ Data used when creating an expense.
-    Every expense must have a category (like Food) and an account (like Cash).
+    Every expense must have a category (like Food).
     """
     name: str
     amount: Decimal = Field(gt=0)
@@ -100,23 +99,28 @@ class TransactionUpdate(SQLModel):
  # Create all database tables (Category, Transaction)
 @app.on_event("startup")
 def on_startup():
-    """Creates all tables and adds default categories when the app starts"""
-    # Create database tables
-    SQLModel.metadata.create_all(engine)
+    """Initialize database when app starts"""
     
+    # Create all tables (Category, Transaction)
+    SQLModel.metadata.create_all(engine)
+    print(" Database tables created")
+    
+    # Add default categories if database is empty
     with Session(engine) as session:
-        # Check if any categories exist
+        # Check if we already have categories
         existing_category = session.exec(select(Category)).first()
         
-        # If no categories exist, add defaults
         if not existing_category:
+            # Add 5 default expense categories
             session.add(Category(name="Food"))
             session.add(Category(name="Transport"))
             session.add(Category(name="Shopping"))
             session.add(Category(name="Bills"))
             session.add(Category(name="Entertainment"))
             session.commit()
-            print(" Default categories created")
+            print("Added 5 default categories")
+        else:
+            print("Categories already exist, skipping seed")
 
 
 
