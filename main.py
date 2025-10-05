@@ -1,5 +1,7 @@
 #Creating a minimal FastAPI app with a health endpoint
 from fastapi import FastAPI,HTTPException, Depends
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlmodel import SQLModel, create_engine, Session, Field, select 
 from typing import Optional, List, Dict
 from datetime import date
@@ -9,6 +11,10 @@ from decimal import Decimal
 # I’m giving the app a title and version, for documentation purposes.
 # It will handle all HTTP requests (GET, POST, DELETE, etc.)
 app = FastAPI(title="Expense Tracker ", version="0.1.0")
+
+# Serve files from the local "static/" folder (HTML/CSS/JS/images).
+# Without this, the browser can’t load the front-end files.
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 #API endpoint for quick health checks
 @app.get("/")
@@ -304,7 +310,23 @@ def get_summary(session: Session = Depends(get_session)) -> Dict[str, float]:
         "balance": round(balance, 2),
     }
 
+# Show the dashboard page (simple static HTML file).
+# Hitting /dashboard returns static/dashboard.html
+@app.get("/dashboard")
+def dashboard_page():
+    return FileResponse("static/dashboard.html")
 
+# Show the Income page (lists income using a bit of JS that calls our API).
+# Hitting /income-ui returns static/income.html
+@app.get("/income-ui")
+def income_page():
+    return FileResponse("static/income.html")
+
+# Show the Expenses page (lists expenses using a bit of JS that calls our API).
+# Hitting /expenses-ui returns static/expenses.html
+@app.get("/expenses-ui")
+def expenses_page():
+    return FileResponse("static/expenses.html")
 
 
 

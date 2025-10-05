@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Dashboard · Expense Tracker</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">Expense Tracker</div>
+    <nav class="nav">
+      <a class="active" href="/dashboard">Dashboard</a>
+      <a href="/income-ui">Income</a>
+      <a href="/expenses-ui">Expenses</a>
+      <a href="/docs" target="_blank">API Docs</a>
+    </nav>
+    <div class="sidebar-foot">v1.0</div>
+  </aside>
+ <!-- Main -->
+  <main class="main">
+    <header><h1>Dashboard</h1></header>
+
+    <!-- KPI summary (we’ll fill with data later) -->
+    <section class="kpis">
+      <div class="card"><h3>Total Balance</h3><div id="kpi-balance" class="value text-balance">€0.00</div></div>
+      <div class="card"><h3>Total Income</h3><div id="kpi-income" class="value text-income">€0.00</div></div>
+      <div class="card"><h3>Total Expenses</h3><div id="kpi-expense" class="value text-expense">€0.00</div></div>
+    </section>
+
+    <div class="card">
+      <h3>Welcome</h3>
+      <p>This is a simple, beginner-friendly dashboard. In the next steps, we’ll load real data from the API and add charts.</p>
+    </div>
+  </main>
+  </body>
+</html>
