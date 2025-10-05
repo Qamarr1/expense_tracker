@@ -1,0 +1,45 @@
+<!-- fetch /api/expenses and /api/categories
+     - show total and table with category names -->
+<script>
+(function () {
+  // highlight left-nav
+  document.querySelector('[data-nav="expenses"]')?.classList.add('active');
+
+  const money = n => (+n || 0).toLocaleString(undefined, {
+    style:'currency', currency:'EUR'
+  });
+
+  async function load() {
+    // get both expenses and categories
+    const [rows, cats] = await Promise.all([
+      fetch('/api/expenses',   { headers:{ accept:'application/json' }}).then(r=>r.json()),
+      fetch('/api/categories', { headers:{ accept:'application/json' }}).then(r=>r.json()),
+    ]);
+
+    // map category_id -> name
+    const nameById = new Map(cats.map(c => [c.id, c.name]));
+
+    // KPI
+    const total = rows.reduce((a,x)=> a + Number(x.amount || 0), 0);
+    document.getElementById('kpi-expense').textContent = money(total);
+
+    // Table
+    const tb = document.getElementById('rows');
+    tb.innerHTML = '';
+    rows.sort((a,b)=> a.date > b.date ? -1 : 1).forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.name ?? ''}</td>
+        <td>${money(r.amount)}</td>
+        <td>${r.date}</td>
+        <td>${nameById.get(r.category_id) ?? ''}</td>
+        <td>${r.note ?? ''}</td>
+      `;
+      tb.appendChild(tr);
+    });
+  }
+
+  document.getElementById('refresh')?.addEventListener('click', load);
+  load();
+})();
+</script>

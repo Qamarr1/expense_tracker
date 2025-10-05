@@ -1,0 +1,41 @@
+<!-- fetch /api/income
+     - fill the KPI and the table -->
+<script>
+(function () {
+  // highlight left-nav
+  document.querySelector('[data-nav="income"]')?.classList.add('active');
+
+  // format numbers as EUR
+  const money = n => (+n || 0).toLocaleString(undefined, {
+    style:'currency', currency:'EUR'
+  });
+
+  // load and render the income list + total
+  async function load() {
+    const res = await fetch('/api/income', { headers:{ accept:'application/json' }});
+    const rows = await res.json();
+
+    // KPI
+    const total = rows.reduce((a,x)=> a + Number(x.amount || 0), 0);
+    document.getElementById('kpi-income').textContent = money(total);
+
+    // Table
+    const tb = document.getElementById('rows');
+    tb.innerHTML = '';
+    rows.sort((a,b)=> a.date > b.date ? -1 : 1).forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.name ?? ''}</td>
+        <td>${money(r.amount)}</td>
+        <td>${r.date}</td>
+        <td>${r.note ?? ''}</td>
+      `;
+      tb.appendChild(tr);
+    });
+  }
+
+  // refresh button and initial load
+  document.getElementById('refresh')?.addEventListener('click', load);
+  load();
+})();
+</script>

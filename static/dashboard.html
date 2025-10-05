@@ -1,38 +1,58 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Dashboard · Expense Tracker</title>
     <link rel="stylesheet" href="/static/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   </head>
   <body>
     <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="brand">Expense Tracker</div>
-    <nav class="nav">
-      <a class="active" href="/dashboard">Dashboard</a>
-      <a href="/income-ui">Income</a>
-      <a href="/expenses-ui">Expenses</a>
-      <a href="/docs" target="_blank">API Docs</a>
-    </nav>
-    <div class="sidebar-foot">v1.0</div>
-  </aside>
- <!-- Main -->
-  <main class="main">
-    <header><h1>Dashboard</h1></header>
+    <aside class="sidebar">
+      <div class="brand-min">Expense Tracker</div>
+      <nav class="nav">
+        <a class="nav-item active" href="/dashboard" data-nav="dashboard">Dashboard</a>
+        <a class="nav-item" href="/income-ui" data-nav="income">Income</a>
+        <a class="nav-item" href="/expenses-ui" data-nav="expenses">Expenses</a>
+        <a class="nav-item" href="/docs" target="_blank">API Docs</a>
+      </nav>
+      <div class="sidebar-foot">v1.0</div>
+    </aside>
 
-    <!-- KPI summary (we’ll fill with data later) -->
-    <section class="kpis">
-      <div class="card"><h3>Total Balance</h3><div id="kpi-balance" class="value text-balance">€0.00</div></div>
-      <div class="card"><h3>Total Income</h3><div id="kpi-income" class="value text-income">€0.00</div></div>
-      <div class="card"><h3>Total Expenses</h3><div id="kpi-expense" class="value text-expense">€0.00</div></div>
-    </section>
+    <!-- Main content -->
+    <main class="main">
+      <header><h1>Dashboard</h1></header>
 
-    <div class="card">
-      <h3>Welcome</h3>
-      <p>This is a simple, beginner-friendly dashboard. In the next steps, we’ll load real data from the API and add charts.</p>
-    </div>
-  </main>
+      <!-- KPIs -->
+      <section class="kpis">
+        <div class="card"><h3>Total Balance</h3><div id="kpi-balance" class="value text-balance">€0.00</div></div>
+        <div class="card"><h3>Total Income</h3><div id="kpi-income" class="value text-income">€0.00</div></div>
+        <div class="card"><h3>Total Expenses</h3><div id="kpi-expense" class="value text-expense">€0.00</div></div>
+      </section>
+
+      <!-- Two-column grid -->
+      <section class="cards-grid">
+        <!-- Spending by Category -->
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:12px">
+            <h3 style="margin:0;color:#9ca3af;">Spending by Category</h3>
+            <button id="refresh" class="btn btn-primary">Refresh</button>
+          </div>
+          <div id="category-list" class="list"></div>
+        </div>
+
+        <!-- Chart -->
+        <div class="card">
+          <h3 style="color:#9ca3af;margin:0;">Financial Overview</h3>
+          <div class="chart-wrap">
+            <canvas id="donut"></canvas>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Dashboard JS -->
+    <script src="/static/script.js?v=1"></script>
   </body>
 </html>
