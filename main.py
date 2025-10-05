@@ -1,6 +1,6 @@
 #Creating a minimal FastAPI app with a health endpoint
 from fastapi import FastAPI
-from sqlmodel import SQLModel, create_engine, Session, Field
+from sqlmodel import SQLModel, create_engine, Session, Field, select 
 from typing import Optional, List, Dict
 from datetime import date
 from decimal import Decimal
@@ -28,7 +28,8 @@ engine = create_engine(DATABASE_URL, connect_args=connect_args, echo=True)
 # It opens before each request and closes automatically after.
 def get_session():
     with Session(engine) as session:
-        yield session
+        yield session      
+
 
 # These classes describe what data will be stored in the database.
 # Each class = one table.
@@ -41,12 +42,6 @@ class Category(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True, unique=True, min_length=1, max_length=50)
 
-class Account(SQLModel, table=True):
-    """Table for accounts.
-    These represent where money is stored or spent from.
-    Example accounts: Cash, Checking Account, Savings Account, Credit Card."""
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(index=True, unique=True, min_length=1, max_length=50)
 
 class Transaction(SQLModel, table=True):
     """Main table that stores all transactions.
@@ -61,7 +56,6 @@ class Transaction(SQLModel, table=True):
     date: date # when the transaction happened
     note: Optional[str] = None # an optional text note from the user
     type: str = Field(regex="^(income|expense)$") # makes sure it’s only 'income' or 'expense'
-    account_id: int = Field(foreign_key="account.id")  # connect it to an account for both (income and expense)
     category_id: Optional[int] = Field(default=None, foreign_key="category.id") # connect to category if expense
 
 # Schemas (for API requests)
@@ -81,7 +75,6 @@ class IncomeCreate(SQLModel):
     amount: Decimal = Field(gt=0)
     date: date
     note: Optional[str] = None
-    account_id: int
 
 class ExpenseCreate(SQLModel):
     """ Data used when creating an expense.
@@ -92,7 +85,6 @@ class ExpenseCreate(SQLModel):
     date: date
     note: Optional[str] = None
     category_id: int
-    account_id: int
 
 
 class TransactionUpdate(SQLModel):
@@ -104,9 +96,27 @@ class TransactionUpdate(SQLModel):
     date: Optional[date] = None
     note: Optional[str] = None
     category_id: Optional[int] = None
-    account_id: Optional[int] = None
 
-
+ # Create all database tables (Category, Transaction)
+@app.on_event("startup")
+def on_startup():
+    """Creates all tables and adds default categories when the app starts"""
+    # Create database tables
+    SQLModel.metadata.create_all(engine)
+    
+    with Session(engine) as session:
+        # Check if any categories exist
+        existing_category = session.exec(select(Category)).first()
+        
+        # If no categories exist, add defaults
+        if not existing_category:
+            session.add(Category(name="Food"))
+            session.add(Category(name="Transport"))
+            session.add(Category(name="Shopping"))
+            session.add(Category(name="Bills"))
+            session.add(Category(name="Entertainment"))
+            session.commit()
+            print(" Default categories created")
 
 
 
