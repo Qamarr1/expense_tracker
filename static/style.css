@@ -30,12 +30,17 @@ body{
   width: 260px;
   background: #141619;
   border-right: 1px solid var(--border);
-  padding: 24px 18px;
+  padding: 30px 18px;              /* a little more breathing room */
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
-.brand-min{ font-weight: 800; letter-spacing: .3px; }
+.brand-min{
+  font-weight: 900;
+  letter-spacing: .4px;
+  font-size: 1.06rem;
+  margin-bottom: 8px;
+}
 .nav{ display: flex; flex-direction: column; gap: 10px; }
 .nav-item{
   display:flex; align-items:center; gap: 10px;
@@ -47,7 +52,7 @@ body{
 .sidebar-foot{ margin-top: auto; color: var(--muted); font-size: .9rem; }
 
 /* Main area  */
-.main{ flex:1; padding: 28px; }
+.main{ flex:1; padding: 34px 28px 28px; }
 header h1{ margin: 0 0 20px; }
 
 /*  Cards & KPI row*/
@@ -81,7 +86,7 @@ header h1{ margin: 0 0 20px; }
   .kpis, .cards-grid{ grid-template-columns: 1fr; }
 }
 
-/* “Spending by Category” list*/
+/* “Spending by Category” & generic list */
 .list{ display:flex; flex-direction:column; margin-top: 10px; }
 .row{
   display:flex; justify-content:space-between; align-items:center;
@@ -93,8 +98,9 @@ header h1{ margin: 0 0 20px; }
 }
 .row-left{ display:flex; align-items:center; gap: 10px; }
 .bubble{
-  width:36px; height:36px; border-radius:10px;
+  width:40px; height:40px; border-radius:12px;
   display:grid; place-items:center; background:#0e1217; color:#9ad1ff;
+  font-size: 18px;
 }
 .amount{ font-weight: 800; }
 .amount.neg{ color: var(--expense); }
@@ -106,12 +112,52 @@ header h1{ margin: 0 0 20px; }
   place-items: center;
   padding: 12px 0;
 }
-#donut{ width: min(420px, 100%); aspect-ratio: 1/1; }
+canvas{ width: min(620px, 100%); }
 
-/*  Button  */
+/*  Buttons  */
 .btn{
   border: none; border-radius: 9999px;
   padding: 8px 14px; font-weight: 700; cursor: pointer;
 }
 .btn-primary{ background: var(--accent); color:#000; }
 .btn-primary:hover{ filter: brightness(.95); }
+
+/* Simple KPI icon header (optional) */
+.kpi-head{ display:flex; align-items:center; gap:10px; }
+.kpi-dot{
+  width:30px; height:30px; border-radius:9999px;
+  display:grid; place-items:center;
+  background:#2e2e2e; font-size: 16px;
+}
+
+/* “Add” button with a + badge */
+.btn-add{
+  display:inline-flex; align-items:center; gap:8px;
+  background: var(--accent); color:#000; font-weight:800;
+  border:none; border-radius:9999px; padding:10px 16px; cursor:pointer;
+}
+.btn-add .plus{ font-size:18px; line-height:1; }
+
+/* Section title row (title + right controls) */
+.section-head{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; margin-bottom:12px;
+}
+.link-muted{
+  color: var(--muted); text-decoration:none; font-weight:700;
+}
+.link-muted:hover{ text-decoration: underline; }
+
+/* Action icons (edit/delete) */
+.row-actions{
+  display:flex; align-items:center; gap:8px; margin-left:12px;
+}
+.icon-btn{
+  width:34px; height:34px; display:grid; place-items:center;
+  border-radius:10px; border:1px solid var(--border); background: #0f1216;
+  cursor:pointer; user-select:none; color:#d0d6dd;
+}
+.icon-btn:hover{ filter: brightness(1.12); }
+/* Make inline SVGs inherit this color */
+.icon-btn svg{ width:18px; height:18px; fill: currentColor; display:block; }
+

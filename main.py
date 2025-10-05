@@ -4,8 +4,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlmodel import SQLModel, create_engine, Session, Field, select 
 from typing import Optional, List, Dict
-from datetime import date
+import datetime as dt
 from decimal import Decimal
+from pydantic import field_validator
+
 
 #FastAPI is the main framework that handles HTTP requests.
 # I’m giving the app a title and version, for documentation purposes.
@@ -58,7 +60,7 @@ class Transaction(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True) # unique ID
     name: str # name of the transaction (e.g., 'Groceries' or 'Salary')
     amount: Decimal = Field(gt=0) # must be a positive number
-    date: date # when the transaction happened
+    date: dt.date # when the transaction happened
     note: Optional[str] = None # an optional text note from the user
     type: str = Field(regex="^(income|expense)$") # makes sure it’s only 'income' or 'expense'
     category_id: Optional[int] = Field(default=None, foreign_key="category.id") # connect to category if expense
@@ -78,7 +80,7 @@ class IncomeCreate(SQLModel):
     """
     name: str
     amount: Decimal = Field(gt=0)
-    date: date
+    date: dt.date
     note: Optional[str] = None
 
 class ExpenseCreate(SQLModel):
@@ -87,7 +89,7 @@ class ExpenseCreate(SQLModel):
     """
     name: str
     amount: Decimal = Field(gt=0)
-    date: date
+    date: dt.date
     note: Optional[str] = None
     category_id: int
 
@@ -98,9 +100,18 @@ class TransactionUpdate(SQLModel):
     """
     name: Optional[str] = None
     amount: Optional[Decimal] = Field(default=None, gt=0)
-    date: Optional[date] = None
+    date: Optional[dt.date] = None
     note: Optional[str] = None
     category_id: Optional[int] = None
+
+    @field_validator("date", mode="before")
+    def parse_date(cls, v):
+        if isinstance(v, str):
+            try:
+                return dt.date.fromisoformat(v)
+            except Exception:
+                raise ValueError("Invalid date format. Expected YYYY-MM-DD.")
+        return v
 
  # Create all database tables (Category, Transaction)
 @app.on_event("startup")
@@ -327,6 +338,5 @@ def income_page():
 @app.get("/expenses-ui")
 def expenses_page():
     return FileResponse("static/expenses.html")
-
 
 

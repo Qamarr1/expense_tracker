@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dashboard · Expense Tracker</title>
 
-  <!-- simple dark theme -->
+  <!-- Our small dark theme -->
   <link rel="stylesheet" href="/static/style.css" />
-  <!-- Chart.js (donut) -->
+
+  <!-- Chart.js for donut + bar -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -25,39 +26,83 @@
 
   <!-- Main content -->
   <main class="main">
-    <header><h1>Dashboard</h1></header>
+    <!-- Title + Refresh (reloads everything) -->
+    <header style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+      <h1 style="margin:0;">Dashboard</h1>
+      <button id="refresh" class="btn btn-primary">Refresh</button>
+    </header>
 
-    <!-- KPI cards (the JS fills these numbers) -->
+    <!-- KPIs (filled by script.js after BOTH APIs load) -->
     <section class="kpis">
-      <div class="card"><h3>Total Balance</h3><div id="kpi-balance" class="value text-balance">€0.00</div></div>
-      <div class="card"><h3>Total Income</h3><div id="kpi-income" class="value text-income">€0.00</div></div>
-      <div class="card"><h3>Total Expenses</h3><div id="kpi-expense" class="value text-expense">€0.00</div></div>
+      <div class="card"><h3>Total Balance</h3><div id="kpi-balance" class="value text-balance">—</div></div>
+      <div class="card"><h3>Total Income</h3><div id="kpi-income" class="value text-income">—</div></div>
+      <div class="card"><h3>Total Expenses</h3><div id="kpi-expense" class="value text-expense">—</div></div>
     </section>
 
-    <!-- Two panels side-by-side -->
+    <!-- Row 1: Recent (left) + Financial Overview (right) -->
     <section class="cards-grid">
-      <!-- Spending by Category -->
       <div class="card">
-        <div style="display:flex;align-items:center;gap:12px">
-          <h3 style="margin:0;color:#9ca3af;">Spending by Category</h3>
-          <button id="refresh" class="btn btn-primary">Refresh</button>
-        </div>
-        <!-- JS will fill this list -->
-        <div id="category-list" class="list"></div>
+        <h3 style="margin:0;color:#9ca3af;">Recent Transactions</h3>
+        <div id="recent-list" class="list"></div>
       </div>
 
-      <!-- Donut chart -->
       <div class="card">
         <h3 style="margin:0;color:#9ca3af;">Financial Overview</h3>
-        <div class="chart-wrap">
-          <canvas id="donut"></canvas>
+        <div class="chart-wrap"><canvas id="donut"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Row 2: Spending by Category (kept) -->
+    <section class="card" style="margin-top:18px;">
+      <h3 style="margin:0;color:#9ca3af;">Spending by Category</h3>
+      <div id="category-list" class="list"></div>
+    </section>
+
+    <!-- Row A: Last 30 Days Expenses (LIST left, BAR right) -->
+    <section class="cards-grid" style="margin-top:18px;">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h3 style="margin:0;color:#9ca3af;">Last 30 Days Expenses</h3>
+          <a href="/expenses-ui" class="btn" style="background:#222;color:#e9edf2;text-decoration:none;">See All →</a>
         </div>
+        <!-- We’ll render up to 4 most recent expense records (no scroll) -->
+        <div id="exp30-list" class="list"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0;color:#9ca3af;">Last 30 Days Expenses</h3>
+        <!-- Bar shows ONLY those same 4 records.
+             Y-axis = amounts, X-axis = 4 blank slots (so empty space is visible). -->
+        <div class="chart-wrap"><canvas id="exp30-bar"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Row B: Last 60 Days Income (LIST left, DONUT right) -->
+    <section class="cards-grid" style="margin-top:18px;">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h3 style="margin:0;color:#9ca3af;">Last 60 Days Income</h3>
+          <a href="/income-ui" class="btn" style="background:#222;color:#e9edf2;text-decoration:none;">See All →</a>
+        </div>
+        <!-- We’ll render up to 4 top income records by amount (within 60 days) -->
+        <div id="inc60-list" class="list"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0;color:#9ca3af;">Last 60 Days Income</h3>
+        <!-- Donut slices = those same 4 records. Center text = sum of those 4. -->
+        <div class="chart-wrap"><canvas id="inc60-donut"></canvas></div>
       </div>
     </section>
   </main>
 
-  <!-- One tiny JS file that does all the fetching + chart -->
-  <script src="/static/script.js?v=1"></script>
+  <!-- Only one script include. Bump ?v= when you change the file. -->
+  <script src="/static/script.js?v=11"></script>
 </body>
 </html>
+
+
+
+
+
 
