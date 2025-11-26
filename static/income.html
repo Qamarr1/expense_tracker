@@ -28,6 +28,7 @@
       <div style="display:flex;gap:10px">
         <button id="add-income" class="btn btn-primary">+ Add Income</button>
         <button id="refresh" class="btn btn-primary">Refresh</button>
+        <button id="export-income" class="btn">Export CSV</button>
       </div>
     </header>
 
@@ -37,19 +38,51 @@
       <div style="height:260px;margin-top:8px;">
         <canvas id="income-bar"></canvas>
       </div>
-      <p style="color:#9ca3af;margin:10px 0 0;">
+
+      <p style="color:#9ca3af;margin:10px 0 4px;">
         Track your earnings over time and analyze your income trends.
       </p>
+
+      <!-- 🔵 Stats with pill-style labels -->
+      <div id="income-stats" class="stats-wrap">
+        <div>
+          <span class="stat-badge">Total income this month</span>
+          <span class="stat-value value-strong">—</span>
+        </div>
+        <div>
+          <span class="stat-badge">Average income per month</span>
+          <span class="stat-value value-strong">—</span>
+        </div>
+        <div>
+          <span class="stat-badge">Biggest income source</span>
+          <span class="stat-value value-strong">—</span>
+        </div>
+      </div>
     </section>
 
     <!-- Income Sources list -->
-    <section class="card">
+    <section class="card" style="margin-top:16px;">
       <h3 style="margin:0 0 10px;color:#9ca3af;">Income Sources</h3>
+
+      <!-- Filters -->
+      <div class="section-head" style="margin-bottom:8px;">
+        <div class="filters-row">
+          <input id="income-from" class="input input-sm" type="date" />
+          <input id="income-to" class="input input-sm" type="date" />
+          <input id="income-search" class="input input-sm input-search-wide" type="text"
+            placeholder="Search by name or note…" />
+          <button id="clear-income-filters" class="btn"
+                  style="padding:6px 12px;font-size:0.8rem;">
+            Reset
+          </button>
+        </div>
+      </div>
+
       <div id="income-list" class="list"></div>
     </section>
   </main>
 
-  <!-- Add/Edit modal (IDs must match JS) -->
+  <!-- Add/Edit modal -->
   <div id="inc-modal-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);align-items:center;justify-content:center;z-index:9999;">
     <div class="card" style="width:min(560px,92%);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -79,11 +112,10 @@
     </div>
   </div>
 
-  <!-- Shared helpers FIRST -->
-<script src="/static/icons.js"></script>
+  <!-- Shared helpers FIRST (ok if 404, just an empty file later) -->
+  <script src="/static/icons.js"></script>
 
-  <!-- Your page script LAST (bump ?v to bust cache) -->
-  <script src="/static/income.js?v=24"></script>
+  <!-- Page script LAST; bump ?v when you change JS -->
+  <script src="/static/income.js?v=30"></script>
 </body>
 </html>
-

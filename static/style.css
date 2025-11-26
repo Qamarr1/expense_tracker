@@ -130,11 +130,18 @@ canvas{ width: min(620px, 100%); }
   background:#2e2e2e; font-size: 16px;
 }
 
-/* “Add” button with a + badge */
+/* “Add” button with a + badge — same size as .btn */
 .btn-add{
-  display:inline-flex; align-items:center; gap:8px;
-  background: var(--accent); color:#000; font-weight:800;
-  border:none; border-radius:9999px; padding:10px 16px; cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  background: var(--accent);
+  color:#000;
+  font-weight:700;
+  border:none;
+  border-radius:9999px;
+  padding: 8px 14px;     /* 🔥 same as .btn */
+  cursor:pointer;
 }
 .btn-add .plus{ font-size:18px; line-height:1; }
 
@@ -161,3 +168,127 @@ canvas{ width: min(620px, 100%); }
 /* Make inline SVGs inherit this color */
 .icon-btn svg{ width:18px; height:18px; fill: currentColor; display:block; }
 
+/* Generic input style (used everywhere) */
+.input{
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #0e1217;
+  color: var(--text);
+}
+.input:focus{
+  outline: none;
+  border-color: var(--accent);
+}
+
+.input-sm{
+  font-size: 0.9rem;
+  padding: 8px 10px;
+}
+
+.input::placeholder{
+  color: var(--muted);
+}
+
+/* Filters row (date + search + reset) */
+.filters-row{
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Make search box grow, so full placeholder is visible */
+.input-search-wide{
+  flex: 1;              /* ← takes remaining space */
+  min-width: 260px;     /* ← at least wide enough to show text */
+}
+
+/* Ensure date inputs use dark color scheme and white-ish icons */
+input[type="date"]{
+  color-scheme: dark;
+}
+input[type="date"]::-webkit-calendar-picker-indicator{
+  filter: invert(1) brightness(1.6);
+  opacity: 1 !important;
+}
+
+.value-strong{
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* stats text under charts */
+.mini-stats{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.mini-stats-column{
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.income-meta{
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.income-meta-row{
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.income-meta-label{
+  font-weight: 500;
+}
+
+.income-meta-value{
+  font-weight: 700;
+  color: var(--income);      /* turquoise  */
+}
+.income-meta-value.expenseish{
+  color: var(--expense);
+}
+
+.income-meta-value.neutral{
+  color: var(--text);
+}
+
+/* --- Income stats pills --- */
+.stats-wrap{
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.stat-badge{
+  display: inline-block;
+  padding: 6px 12px;
+  background: var(--accent);   /* same turquoise as buttons */
+  color: #000;                 /* black text like Add Income */
+  font-weight: 700;
+  border-radius: 9999px;       /* pill shape */
+  font-size: 0.85rem;
+  margin-right: 8px;
+}
+
+.stat-value{
+  font-weight: 800;
+  color: var(--text);
+}

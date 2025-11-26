@@ -49,6 +49,13 @@ if (window.__INCOME_APP_INITIALIZED__) {
   // ---- elements ----
   const listEl = $("#income-list");
   const btnRefresh = $("#refresh");
+  const btnExport = $("#export-income");
+
+  const inpFrom = $("#income-from");
+  const inpTo = $("#income-to");
+  const inpSearch = $("#income-search");
+  const statsEl = $("#income-stats");
+  const btnClearFilters = $("#clear-income-filters");
 
   const modal = $("#inc-modal-backdrop");
   const btnOpen = $("#add-income");
@@ -65,6 +72,7 @@ if (window.__INCOME_APP_INITIALIZED__) {
 
   let editingId = null;  // null = create, number = edit existing
   let chart;
+  let allRows = [];      // full dataset from API
 
   function openModal(row = null) {
     modal.style.display = "flex";
@@ -88,6 +96,7 @@ if (window.__INCOME_APP_INITIALIZED__) {
     }
     inpName.focus();
   }
+
   function closeModal() {
     modal.style.display = "none";
     modal.setAttribute("aria-hidden", "true");
@@ -151,6 +160,112 @@ if (window.__INCOME_APP_INITIALIZED__) {
     });
   }
 
+  function getFilteredIncomeRows() {
+    const fromVal = inpFrom?.value || "";
+    const toVal = inpTo?.value || "";
+    const q = (inpSearch?.value || "").trim().toLowerCase();
+
+    return (allRows || []).filter(r => {
+      if (!r.date) return false;
+      const d = r.date;
+
+      if (fromVal && d < fromVal) return false;
+      if (toVal && d > toVal) return false;
+
+      if (q) {
+        const name = (r.name || "").toLowerCase();
+        const note = (r.note || "").toLowerCase();
+        if (!name.includes(q) && !note.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  function applyIncomeFiltersAndRender() {
+    const rows = getFilteredIncomeRows();
+    renderBar(rows);
+    renderList(rows);
+  }
+
+  function exportIncomeCSV() {
+    if (!allRows.length) {
+      alert("No income data to export yet.");
+      return;
+    }
+    const rows = getFilteredIncomeRows();
+    if (!rows.length) {
+      alert("No income matches the current filters.");
+      return;
+    }
+
+    const header = ["id", "name", "amount", "date", "note"];
+    const lines = [header.join(",")];
+
+    rows.forEach(r => {
+      const vals = [
+        r.id,
+        (r.name || "").replace(/"/g, '""'),
+        toNum(r.amount),
+        r.date || "",
+        (r.note || "").replace(/"/g, '""')
+      ];
+      const line = vals.map(v => `"${String(v)}"`).join(",");
+      lines.push(line);
+    });
+
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "income.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function renderIncomeStats(rowsRaw) {
+    if (!statsEl) return;
+    const rows = rowsRaw || [];
+    const now = new Date();
+    const ymNow = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    let totalThisMonth = 0;
+    const sumsByMonth = new Map();
+    const sumsBySource = new Map();
+
+    rows.forEach(r => {
+      if (!r.date) return;
+      const d = parseISO(r.date);
+      if (isNaN(d)) return;
+
+      const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const amt = toNum(r.amount);
+
+      sumsByMonth.set(ym, (sumsByMonth.get(ym) || 0) + amt);
+      if (ym === ymNow) totalThisMonth += amt;
+
+      const key = (r.name || "Income").trim() || "Income";
+      sumsBySource.set(key, (sumsBySource.get(key) || 0) + amt);
+    });
+
+    const totalAll = [...sumsByMonth.values()].reduce((a, b) => a + b, 0);
+    const monthCount = sumsByMonth.size || 1;
+    const avgPerMonth = totalAll / monthCount;
+
+    let bestSource = "—";
+    if (sumsBySource.size) {
+      const [name, value] =
+        [...sumsBySource.entries()].sort((a, b) => b[1] - a[1])[0];
+      bestSource = `${name} (${money(value)})`;
+    }
+
+    const spans = statsEl.querySelectorAll(".value-strong");
+    if (spans[0]) spans[0].textContent = money(totalThisMonth);
+    if (spans[1]) spans[1].textContent = money(avgPerMonth);
+    if (spans[2]) spans[2].textContent = bestSource;
+  }
+
   async function saveIncome() {
     const name   = (inpName.value || "").trim();
     const amount = parseFloat(inpAmount.value);
@@ -179,9 +294,9 @@ if (window.__INCOME_APP_INITIALIZED__) {
   }
 
   async function loadAll() {
-    const rows = await getJSON("/api/income", []);
-    renderBar(rows);
-    renderList(rows);
+    allRows = await getJSON("/api/income", []);
+    renderIncomeStats(allRows);
+    applyIncomeFiltersAndRender();
   }
 
   // events
@@ -190,7 +305,24 @@ if (window.__INCOME_APP_INITIALIZED__) {
   btnClose?.addEventListener("click", closeModal);
   btnCancel?.addEventListener("click", closeModal);
   btnSave?.addEventListener("click", saveIncome);
-  modal?.addEventListener("click", (e) => { if (e.target.id === "inc-modal-backdrop") closeModal(); });
+  modal?.addEventListener("click", (e) => {
+    if (e.target.id === "inc-modal-backdrop") closeModal();
+  });
+
+  btnExport?.addEventListener("click", exportIncomeCSV);
+
+  // filters trigger re-render
+  inpFrom?.addEventListener("change", applyIncomeFiltersAndRender);
+  inpTo?.addEventListener("change", applyIncomeFiltersAndRender);
+  inpSearch?.addEventListener("input", applyIncomeFiltersAndRender);
+
+  // reset filters
+  btnClearFilters?.addEventListener("click", () => {
+    if (inpFrom) inpFrom.value = "";
+    if (inpTo) inpTo.value = "";
+    if (inpSearch) inpSearch.value = "";
+    applyIncomeFiltersAndRender();
+  });
 
   loadAll();
 })();
