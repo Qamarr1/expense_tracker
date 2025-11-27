@@ -29,6 +29,10 @@
     <!-- Title + Refresh (reloads everything) -->
     <header style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
       <h1 style="margin:0;">Dashboard</h1>
+      <div id="negative-balance-banner" class="negative-banner" style="display:none;">
+          ⚠️ Your balance is negative. You are overspending.
+      </div>
+
       <button id="refresh" class="btn btn-primary">Refresh</button>
     </header>
 
@@ -100,7 +104,6 @@
   <script src="/static/script.js?v=11"></script>
 </body>
 </html>
-
 
 
 

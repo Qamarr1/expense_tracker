@@ -321,6 +321,17 @@
     const totalExpense = (expenses || []).reduce((a,x)=> a + toNum(x.amount), 0);
     const balance      = totalIncome - totalExpense;
 
+    // Show negative balance warning
+    const banner = document.getElementById("negative-balance-banner");
+    if (banner) {
+      if (balance < 0) {
+        banner.style.display = "block";
+      } else {
+        banner.style.display = "none";
+      }
+    }
+
+
     elIncome  && (elIncome.textContent  = money(totalIncome));
     elExpense && (elExpense.textContent = money(totalExpense));
     elBalance && (elBalance.textContent = money(balance));

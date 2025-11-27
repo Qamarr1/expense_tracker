@@ -47,6 +47,8 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
     return m ? `${m[3]}-${m[2]}-${m[1]}` : s;
   }
 
+  const LARGE_EXPENSE_THRESHOLD = 500;
+
   // ---- UI pieces ----
   const listEl = $("#expense-list");
   const btnRefresh = $("#refresh");
@@ -115,6 +117,8 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
   let chart;
   let editingId = null;
   let allRows = [];
+  let summary = { income_total: null, expense_total: null, balance: null };
+  let tippingExpenseId = null;   // the single expense that pushed you over income
 
   async function fillSelect() {
     await ensureCanonical();
@@ -177,6 +181,26 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
     listEl.innerHTML = rows.length ? rows.map(r => {
       const cat = categories.find(c => c.id === r.category_id);
       const icon = catEmoji(cat?.name || "");
+      const amountNum = toNum(r.amount);
+      const flags = [];
+
+      // 1) Only the *tipping* expense shows the "Exceeds balance" warning
+      if (tippingExpenseId && r.id === tippingExpenseId && summary.income_total != null) {
+        const totalExpenses = (allRows || []).reduce((a, x) => a + toNum(x.amount || 0), 0);
+        const overshoot = totalExpenses - summary.income_total;
+        if (overshoot > 0) {
+          flags.push(`⚠️ Exceeds balance by ${money(overshoot)}`);
+        }
+      }
+
+      // 2) "Large expense" stays per-row, exactly like before
+      if (amountNum > LARGE_EXPENSE_THRESHOLD) {
+        flags.push("⚠️ Large expense");
+      }
+
+      const flagsHTML = flags.length
+        ? `<div class="expense-flags">${flags.map(f => `<span class="expense-flag">${f}</span>`).join("")}</div>`
+        : "";
       return `
         <div class="row">
           <div class="row-left">
@@ -186,10 +210,11 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
               <div style="color:var(--muted);font-size:.9rem;">
                 ${r.date}${cat ? " · " + cat.name : ""}
               </div>
+              ${flagsHTML}
             </div>
           </div>
           <div class="row-right">
-            <span class="amount neg">-${money(toNum(r.amount))}</span>
+            <span class="amount neg">-${money(amountNum)}</span>
             <div class="row-actions">
               <button class="icon-btn" data-act="edit" data-id="${r.id}" title="Edit">${PENCIL_SVG}</button>
               <button class="icon-btn" data-act="del"  data-id="${r.id}" title="Delete">${TRASH_SVG}</button>
@@ -343,6 +368,49 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
     if (spans[2]) spans[2].textContent = biggest;
   }
 
+  async function loadSummary() {
+    const s = await getJSON("/api/stats/summary", null);
+    if (s && typeof s === "object") {
+      const income = Number(s.income_total);
+      const expense = Number(s.expense_total);
+      const balance = Number(s.balance);
+      summary = {
+        income_total: Number.isFinite(income) ? income : null,
+        expense_total: Number.isFinite(expense) ? expense : null,
+        balance: Number.isFinite(balance) ? balance : null,
+      };
+    } else {
+      summary = { income_total: null, expense_total: null, balance: null };
+    }
+  }
+
+  function computeTippingExpenseId() {
+    tippingExpenseId = null;
+
+    const incomeTotal = Number.isFinite(summary.income_total)
+      ? summary.income_total
+      : null;
+
+    // If we don't know total income, we can't decide anything
+    if (incomeTotal === null) return;
+
+    // Sort all expenses by date (oldest → newest)
+    const sorted = (allRows || [])
+      .filter(r => r.date)
+      .slice()
+      .sort((a, b) => parseISO(a.date) - parseISO(b.date));
+
+    let running = 0;
+    for (const r of sorted) {
+      running += toNum(r.amount || 0);
+      if (running > incomeTotal) {
+        // This is the first expense that makes total expenses > total income
+        tippingExpenseId = r.id;
+        break;
+      }
+    }
+  }
+
   async function saveExpense() {
     const name   = (inpName.value || "").trim();
     const amount = parseFloat(inpAmount.value);
@@ -374,7 +442,9 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
 
   async function loadAll() {
     await fillSelect();
+    await loadSummary();
     allRows = await getJSON("/api/expenses", []);
+    computeTippingExpenseId();      // 🔹 decide which expense gets the warning
     renderExpenseStats(allRows);
     applyExpenseFiltersAndRender();
   }
@@ -402,11 +472,3 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
   loadAll();
 })();
 }
-
-
-
-
-
-
-
-

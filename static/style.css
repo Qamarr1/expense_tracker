@@ -292,3 +292,33 @@ input[type="date"]::-webkit-calendar-picker-indicator{
   font-weight: 800;
   color: var(--text);
 }
+
+/* Expense warnings (balance / large) */
+.expense-flags{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.expense-flag{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 9999px;
+  background: #241a12;
+  border: 1px solid #4a321a;
+  color: #f3c96a;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.negative-banner {
+  background: #2a1616;
+  border: 1px solid #993333;
+  color: #ffb3b3;
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-top: 12px;
+}
