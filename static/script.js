@@ -20,7 +20,7 @@
  * - The top "Refresh" button reloads everything by calling loadAll().
  */
 
-(function () {
+function runDashboard() {
   // ---------- helpers ----------
   const $ = (sel) => document.querySelector(sel);
 
@@ -358,8 +358,16 @@
 
   // First paint
   loadAll();
-})();
+}
 
+document.addEventListener("DOMContentLoaded", () => {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    window.location.href = "/login";
+    return;
+  }
+  runDashboard();
+});
 
 
 
