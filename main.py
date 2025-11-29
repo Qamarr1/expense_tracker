@@ -1,18 +1,49 @@
 #Creating a minimal FastAPI app with a health endpoint
-from fastapi import FastAPI,HTTPException, Depends
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from sqlmodel import SQLModel, create_engine, Session, Field, select 
-from typing import Optional, List, Dict
+import os
 import datetime as dt
-from decimal import Decimal
-from pydantic import field_validator
+from typing import Dict
 
+from utils import compute_summary
+from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from sqlmodel import SQLModel, create_engine, Session, select
+
+from prometheus_fastapi_instrumentator import Instrumentator
+
+from models import Category, Transaction, User
+from schemas import (
+    CategoryCreate,
+    CategoryRead,
+    CategoryUpdate,
+    IncomeCreate,
+    ExpenseCreate,
+    TransactionUpdate,
+    UserCreate,
+    UserRead,
+    UserLogin,
+    Token,
+    TokenData,
+    UsernameChange,
+    PasswordChange,
+)
+from auth import (
+    verify_password,
+    get_password_hash,
+    create_access_token,
+    SECRET_KEY,
+    ALGORITHM,
+)
 
 #FastAPI is the main framework that handles HTTP requests.
 # I’m giving the app a title and version, for documentation purposes.
 # It will handle all HTTP requests (GET, POST, DELETE, etc.)
 app = FastAPI(title="Expense Tracker ", version="0.1.0")
+instrumentator = Instrumentator().instrument(app)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
 
 # Serve files from the local "static/" folder (HTML/CSS/JS/images).
 # Without this, the browser can’t load the front-end files.
@@ -20,17 +51,46 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 #API endpoint for quick health checks
 @app.get("/")
-def health():
-    return {"status": "healthy", "message": "Expense Tracker API is running"}
+def root():
+    return {"message": "Expense Tracker API is running. See /health for status."}
 
-# Get database engine for  SQLite
-# It creates a file called 'expense.db' in the project folder automatically.
-DATABASE_URL = "sqlite:///./expense.db"
-# Create connection arguments for SQLite, to allow multiple connections safely as it has has a small limitation with multithreading
-connect_args = {"check_same_thread": False} 
-# Create database engine, this is the actual connection (my Python code with the actual SQLite database.)
-# echo=True will print SQL statements in the terminal, helpful for debugging
-engine = create_engine(DATABASE_URL, connect_args=connect_args, echo=True)
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "timestamp": dt.datetime.utcnow().isoformat(),
+        "app": "expense-tracker",
+        "version": "0.1.0",
+    }
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./expense.db")
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+else:
+    connect_args = {}
+
+engine = create_engine(
+    DATABASE_URL,
+    connect_args=connect_args,
+    echo=False,
+)
+DEFAULT_CATEGORIES = [
+    "Food & Dining",
+    "Groceries",
+    "Transport",
+    "Shopping",
+    "Bills & Utilities",
+    "Entertainment",
+    "Health & Medical",
+    "Education",
+    "Travel",
+    "Gifts",
+    "Personal Care",
+    "Subscriptions",
+    "Insurance",
+    "Savings",
+    "Other",
+]
 
 #This function gives me a session (temporary connection) to the database.
 # It opens before each request and closes automatically after.
@@ -39,134 +99,212 @@ def get_session():
         yield session      
 
 
-# These classes describe what data will be stored in the database.
-# Each class = one table.
-# Each variable inside becomes a column in that table.
-
-class Category(SQLModel, table=True):
-    """Table for expense categories.
-    Stores expense categories like ('Food', 'Transport', or 'Bills').
-    Each category has a unique name."""
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(index=True, unique=True, min_length=1, max_length=50)
+def get_category_or_400(session: Session, category_id: int) -> Category:
+    category = session.get(Category, category_id)
+    if not category:
+        raise HTTPException(status_code=400, detail="Category not found")
+    return category
 
 
-class Transaction(SQLModel, table=True):
-    """Main table that stores all transactions.
-    It records both income and expenses.
-    - 'type' = either 'income' or 'expense'
-    - 'category_id' = only for expenses (so it can be left empty for income). """
+def get_user_by_username(session: Session, username: str) -> User | None:
+    stmt = select(User).where(User.username == username)
+    return session.exec(stmt).first()
 
-    id: Optional[int] = Field(default=None, primary_key=True) # unique ID
-    name: str # name of the transaction (e.g., 'Groceries' or 'Salary')
-    amount: Decimal = Field(gt=0) # must be a positive number
-    date: dt.date # when the transaction happened
-    note: Optional[str] = None # an optional text note from the user
-    type: str = Field(regex="^(income|expense)$") # makes sure it’s only 'income' or 'expense'
-    category_id: Optional[int] = Field(default=None, foreign_key="category.id") # connect to category if expense
-
-# Schemas (for API requests)
-# These are models used by FastAPI when sending or receiving data.
-# They describe what information the user can send to the API when adding or editing things.
-
-class CategoryCreate(SQLModel):
-    """"Used when creating a new category (e.g., 'Food')."""
-    name: str
-
-class IncomeCreate(SQLModel):
-    """ Data Used when creating a new income.
-    The 'type' is set automatically by the backend, so the user doesn’t have to write it.
-    Example: adding 'Salary' or 'Freelance Work' as income."
-    """
-    name: str
-    amount: Decimal = Field(gt=0)
-    date: dt.date
-    note: Optional[str] = None
-
-class ExpenseCreate(SQLModel):
-    """ Data used when creating an expense.
-    Every expense must have a category (like Food).
-    """
-    name: str
-    amount: Decimal = Field(gt=0)
-    date: dt.date
-    note: Optional[str] = None
-    category_id: int
+def save_and_refresh(session: Session, instance):
+    session.add(instance)
+    session.commit()
+    session.refresh(instance)
+    return instance
 
 
-class TransactionUpdate(SQLModel):
-    """ Data used when updating an income or expense.
-    All fields are optional so the user can update only one field.
-    """
-    name: Optional[str] = None
-    amount: Optional[Decimal] = Field(default=None, gt=0)
-    date: Optional[dt.date] = None
-    note: Optional[str] = None
-    category_id: Optional[int] = None
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    session: Session = Depends(get_session),
+) -> User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
-    @field_validator("date", mode="before")
-    def parse_date(cls, v):
-        if isinstance(v, str):
-            try:
-                return dt.date.fromisoformat(v)
-            except Exception:
-                raise ValueError("Invalid date format. Expected YYYY-MM-DD.")
-        return v
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str | None = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
 
- # Create all database tables (Category, Transaction)
+    user = get_user_by_username(session, username=username)
+    if user is None:
+        raise credentials_exception
+    return user
+
+
+def seed_default_categories(session: Session) -> None:
+    existing_category = session.exec(select(Category)).first()
+    if existing_category:
+        print("Categories already exist, skipping seed")
+        return
+
+    session.add_all([Category(name=name) for name in DEFAULT_CATEGORIES])
+    session.commit()
+    print(f"Added {len(DEFAULT_CATEGORIES)} default categories")
+
 @app.on_event("startup")
 def on_startup():
-    """Initialize database when app starts"""
-    
-    # Create all tables (Category, Transaction)
     SQLModel.metadata.create_all(engine)
-    print(" Database tables created")
-    
-    # Add default categories if database is empty
+
+
+@app.on_event("startup")
+async def _startup_metrics():
+    """Expose Prometheus metrics at /metrics when app starts"""
+    instrumentator.expose(app)
+
     with Session(engine) as session:
-        # Check if we already have categories
-        existing_category = session.exec(select(Category)).first()
-        
-        if not existing_category:
-            # Add 5 default expense categories
-            session.add(Category(name="Food & Dining"))
-            session.add(Category(name="Groceries"))
-            session.add(Category(name="Transport"))
-            session.add(Category(name="Shopping"))
-            session.add(Category(name="Bills & Utilities"))
-            session.add(Category(name="Entertainment"))
-            session.add(Category(name="Health & Medical"))
-            session.add(Category(name="Education"))
-            session.add(Category(name="Travel"))
-            session.add(Category(name="Gifts"))
-            session.add(Category(name="Personal Care"))
-            session.add(Category(name="Subscriptions"))
-            session.add(Category(name="Insurance"))
-            session.add(Category(name="Savings"))
-            session.add(Category(name="Other"))
-            session.commit()
-            print("Added 15 default categories")
-        else:
-            print("Categories already exist, skipping seed")
+        seed_default_categories(session)
+
+# AUTH ENDPOINTS
+@app.post("/auth/register", response_model=UserRead, status_code=201)
+def register_user(
+    user_in: UserCreate,
+    session: Session = Depends(get_session),
+):
+    existing = get_user_by_username(session, user_in.username)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered",
+        )
+
+    hashed = get_password_hash(user_in.password)
+    user = User(username=user_in.username, hashed_password=hashed)
+    return save_and_refresh(session, user)
+
+
+@app.post("/auth/login", response_model=Token)
+def login(
+    user_in: UserLogin,
+    session: Session = Depends(get_session),
+):
+    user = get_user_by_username(session, user_in.username)
+    if not user or not verify_password(user_in.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect username or password",
+        )
+
+    access_token = create_access_token({"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.get("/auth/me")
+def read_current_user(current_user: User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "created_at": getattr(current_user, "created_at", None),
+    }
+
+
+@app.post("/auth/change-username")
+def change_username(
+    payload: UsernameChange,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    existing = session.exec(
+        select(User).where(User.username == payload.new_username)
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Username already in use.")
+
+    current_user.username = payload.new_username
+    save_and_refresh(session, current_user)
+
+    new_token = create_access_token(
+        {"sub": current_user.username, "user_id": current_user.id}
+    )
+
+    return {
+        "message": "username-updated",
+        "access_token": new_token,
+        "token_type": "bearer",
+    }
+
+
+@app.post("/auth/change-password")
+def change_password(
+    payload: PasswordChange,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+
+    current_user.hashed_password = get_password_hash(payload.new_password)
+    save_and_refresh(session, current_user)
+
+    return {"message": "password-updated"}
 
 # CATEGORY ENDPOINTS
 
 # List all categories so the UI can fill a dropdown (sorted by name).
-@app.get("/api/categories", response_model=list[Category])
+@app.get("/api/categories", response_model=list[CategoryRead])
 def list_categories(session: Session = Depends(get_session)):
     return session.exec(select(Category).order_by(Category.name)).all()
 
 # Create a new category (e.g., "Food"). I prevent duplicates by checking the name first.
-@app.post("/api/categories", response_model=Category, status_code=201)
+@app.post("/api/categories", response_model=CategoryRead, status_code=201)
 def create_category(payload: CategoryCreate, session: Session = Depends(get_session)):
     existing = session.exec(select(Category).where(Category.name == payload.name)).first()
     if existing:
         raise HTTPException(status_code=400, detail="Category already exists")
     row = Category(name=payload.name)
-    session.add(row)
+    return save_and_refresh(session, row)
+
+@app.patch("/api/categories/{category_id}", response_model=CategoryRead)
+def update_category(
+    category_id: int,
+    payload: CategoryUpdate,
+    session: Session = Depends(get_session),
+):
+    category = session.get(Category, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    existing = session.exec(
+        select(Category).where(
+            Category.name == payload.name,
+            Category.id != category_id,
+        )
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Category with this name already exists")
+
+    category.name = payload.name
+    return save_and_refresh(session, category)
+
+
+@app.delete("/api/categories/{category_id}", status_code=204)
+def delete_category(category_id: int, session: Session = Depends(get_session)):
+    category = session.get(Category, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    in_use = session.exec(
+        select(Transaction).where(Transaction.category_id == category_id)
+    ).first()
+
+    if in_use:
+        raise HTTPException(
+            status_code=400,
+            detail="Category is in use and cannot be deleted",
+        )
+
+    session.delete(category)
     session.commit()
-    session.refresh(row)
-    return row
+    return
 
 # INCOME ENDPOINTS
 # Create income. The client does NOT send "type"; the server sets type='income'.
@@ -180,10 +318,7 @@ def create_income(payload: IncomeCreate, session: Session = Depends(get_session)
         type="income",
         category_id=None,  # income does not use a category
     )
-    session.add(row)
-    session.commit()
-    session.refresh(row)
-    return row
+    return save_and_refresh(session, row)
 
 # Return all income transactions, newest first (for tables/charts on the dashboard).
 @app.get("/api/income", response_model=list[Transaction])
@@ -206,19 +341,11 @@ def update_income(
     if not transaction or transaction.type != "income":
         raise HTTPException(status_code=404, detail="Income not found")
 
-    if payload.name is not None:
-        transaction.name = payload.name
-    if payload.amount is not None:
-        transaction.amount = payload.amount
-    if payload.date is not None:
-        transaction.date = payload.date
-    if payload.note is not None:
-        transaction.note = payload.note
+    data = payload.model_dump(exclude_unset=True)
+    for field, value in data.items():
+        setattr(transaction, field, value)
 
-    session.add(transaction)
-    session.commit()
-    session.refresh(transaction)
-    return transaction
+    return save_and_refresh(session, transaction)
 
 # Delete an income by id.
 @app.delete("/api/income/{income_id}", status_code=204)
@@ -234,8 +361,7 @@ def delete_income(income_id: int, session: Session = Depends(get_session)):
 # Create expense. Must reference a valid category (I validate the category_id exists).
 @app.post("/api/expenses", response_model=Transaction, status_code=201)
 def create_expense(payload: ExpenseCreate, session: Session = Depends(get_session)):
-    if not session.get(Category, payload.category_id):
-        raise HTTPException(status_code=400, detail="Category does not exist")
+    get_category_or_400(session, payload.category_id)
 
     row = Transaction(
         name=payload.name,
@@ -245,10 +371,7 @@ def create_expense(payload: ExpenseCreate, session: Session = Depends(get_sessio
         type="expense",
         category_id=payload.category_id,
     )
-    session.add(row)
-    session.commit()
-    session.refresh(row)
-    return row
+    return save_and_refresh(session, row)
 
 # Return all expenses, newest first (for tables/charts on the dashboard).
 @app.get("/api/expenses", response_model=list[Transaction])
@@ -271,23 +394,15 @@ def update_expense(
     if not transaction or transaction.type != "expense":
         raise HTTPException(status_code=404, detail="Expense not found")
 
-    if payload.name is not None:
-        transaction.name = payload.name
-    if payload.amount is not None:
-        transaction.amount = payload.amount
-    if payload.date is not None:
-        transaction.date = payload.date
-    if payload.note is not None:
-        transaction.note = payload.note
-    if payload.category_id is not None:
-        if not session.get(Category, payload.category_id):
-            raise HTTPException(status_code=400, detail="Category does not exist")
-        transaction.category_id = payload.category_id
+    data = payload.model_dump(exclude_unset=True)
 
-    session.add(transaction)
-    session.commit()
-    session.refresh(transaction)
-    return transaction
+    if "category_id" in data and data["category_id"] is not None:
+        get_category_or_400(session, data["category_id"])
+
+    for field, value in data.items():
+        setattr(transaction, field, value)
+
+    return save_and_refresh(session, transaction)
 
 # Delete an expense by id.
 @app.delete("/api/expenses/{expense_id}", status_code=204)
@@ -311,15 +426,10 @@ def get_summary(session: Session = Depends(get_session)) -> Dict[str, float]:
         select(Transaction).where(Transaction.type == "expense")
     ).all()
 
-    income_total = float(sum(t.amount for t in incomes))
-    expense_total = float(sum(t.amount for t in expenses))
-    balance = income_total - expense_total
-
-    return {
-        "income_total": round(income_total, 2),
-        "expense_total": round(expense_total, 2),
-        "balance": round(balance, 2),
-    }
+    return compute_summary(
+        [t.amount for t in incomes],
+        [t.amount for t in expenses],
+    )
 
 # Show the dashboard page (simple static HTML file).
 # Hitting /dashboard returns static/dashboard.html
@@ -340,3 +450,10 @@ def expenses_page():
     return FileResponse("static/expenses.html")
 
 
+@app.get("/settings-ui")
+def settings_ui():
+    return FileResponse("static/settings.html")
+
+@app.get("/login", response_class=HTMLResponse)
+def login_ui():
+    return FileResponse("static/login.html")
