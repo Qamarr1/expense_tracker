@@ -483,10 +483,8 @@ def get_summary(session: Session = Depends(get_session)) -> Dict[str, float]:
         select(Transaction).where(Transaction.type == "expense")
     ).all()
 
-    return compute_summary(
-        [t.amount for t in incomes],
-        [t.amount for t in expenses],
-    )
+    transactions = incomes + expenses
+    return compute_summary(transactions)
 
 # Show the dashboard page (simple static HTML file).
 # Hitting /dashboard returns static/dashboard.html
