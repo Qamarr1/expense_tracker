@@ -1,0 +1,11 @@
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+pytest_cache
+htmlcov
+expense.db
+node_modules
+.git
+.gitignore
