@@ -1,0 +1,145 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.6, pytest-8.3.3, pluggy-1.6.0
+rootdir: /Users/qamarhareth/Desktop/3rd year/Devops/expense_tracker
+plugins: cov-5.0.0, anyio-4.11.0
+collected 80 items
+
+tests/test_auth_endpoints.py ..................                          [ 22%]
+tests/test_auth_utils.py ...                                             [ 26%]
+tests/test_category_endpoints.py .....                                   [ 32%]
+tests/test_date_utils.py .....                                           [ 38%]
+tests/test_expense_classification.py ......                              [ 46%]
+tests/test_expense_endpoints.py .........                                [ 57%]
+tests/test_filter_transactions.py ......                                 [ 65%]
+tests/test_health.py .                                                   [ 66%]
+tests/test_income_endpoints.py ......                                    [ 73%]
+tests/test_integration_flows.py ...                                      [ 77%]
+tests/test_postgres_api.py ..                                            [ 80%]
+tests/test_postgres_smoke.py .                                           [ 81%]
+tests/test_schemas.py .....                                              [ 87%]
+tests/test_summary_logic.py .....                                        [ 93%]
+tests/test_utils.py .....                                                [100%]
+
+=============================== warnings summary ===============================
+venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:323
+  /Users/qamarhareth/Desktop/3rd year/Devops/expense_tracker/venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:323: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+venv/lib/python3.12/site-packages/passlib/utils/__init__.py:854
+  /Users/qamarhareth/Desktop/3rd year/Devops/expense_tracker/venv/lib/python3.12/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+    from crypt import crypt as _crypt
+
+main.py:162
+  /Users/qamarhareth/Desktop/3rd year/Devops/expense_tracker/main.py:162: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+venv/lib/python3.12/site-packages/fastapi/applications.py:4574
+  /Users/qamarhareth/Desktop/3rd year/Devops/expense_tracker/venv/lib/python3.12/site-packages/fastapi/applications.py:4574: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_postgres_smoke.py:14
+  /Users/qamarhareth/Desktop/3rd year/Devops/expense_tracker/tests/test_postgres_smoke.py:14: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+tests/test_auth_endpoints.py::test_register_and_login_success
+  /Users/qamarhareth/Desktop/3rd year/Devops/expense_tracker/venv/lib/python3.12/site-packages/passlib/handlers/argon2.py:716: DeprecationWarning: Accessing argon2.__version__ is deprecated and will be removed in a future release. Use importlib.metadata directly to query for argon2-cffi's packaging metadata.
+    _argon2_cffi.__version__, max_version)
+
+tests/test_auth_endpoints.py: 14 warnings
+tests/test_postgres_smoke.py: 1 warning
+  /Users/qamarhareth/Desktop/3rd year/Devops/expense_tracker/venv/lib/python3.12/site-packages/pydantic/fields.py:656: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return fac()
+
+tests/test_auth_endpoints.py::test_change_password_success_new_login_works
+tests/test_auth_endpoints.py::test_change_password_wrong_current_rejected
+tests/test_auth_endpoints.py::test_me_returns_current_user
+tests/test_auth_endpoints.py::test_change_username_success_and_login_with_new
+tests/test_auth_endpoints.py::test_change_username_success_and_login_with_new
+tests/test_auth_endpoints.py::test_change_username_duplicate_rejected
+tests/test_auth_endpoints.py::test_me_with_expired_token_unauthorized
+tests/test_auth_endpoints.py::test_me_with_token_for_deleted_user_unauthorized
+tests/test_auth_utils.py::test_create_access_token_contains_sub_and_exp
+  /Users/qamarhareth/Desktop/3rd year/Devops/expense_tracker/venv/lib/python3.12/site-packages/jose/jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+tests/test_health.py::test_health_status
+tests/test_postgres_api.py::test_postgres_health_and_categories
+  /Users/qamarhareth/Desktop/3rd year/Devops/expense_tracker/main.py:63: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": dt.datetime.utcnow().isoformat(),
+
+tests/test_postgres_smoke.py::test_postgres_basic_crud
+  /Users/qamarhareth/Desktop/3rd year/Devops/expense_tracker/tests/test_postgres_smoke.py:72: DeprecationWarning: 
+          🚨 You probably want to use `session.exec()` instead of `session.query()`.
+  
+          `session.exec()` is SQLModel's own short version with increased type
+          annotations.
+  
+          Or otherwise you might want to use `session.execute()` instead of
+          `session.query()`.
+          
+    users = session.query(User).all()
+
+tests/test_postgres_smoke.py::test_postgres_basic_crud
+  /Users/qamarhareth/Desktop/3rd year/Devops/expense_tracker/tests/test_postgres_smoke.py:73: DeprecationWarning: 
+          🚨 You probably want to use `session.exec()` instead of `session.query()`.
+  
+          `session.exec()` is SQLModel's own short version with increased type
+          annotations.
+  
+          Or otherwise you might want to use `session.execute()` instead of
+          `session.query()`.
+          
+    cats = session.query(Category).all()
+
+tests/test_postgres_smoke.py::test_postgres_basic_crud
+  /Users/qamarhareth/Desktop/3rd year/Devops/expense_tracker/tests/test_postgres_smoke.py:74: DeprecationWarning: 
+          🚨 You probably want to use `session.exec()` instead of `session.query()`.
+  
+          `session.exec()` is SQLModel's own short version with increased type
+          annotations.
+  
+          Or otherwise you might want to use `session.execute()` instead of
+          `session.query()`.
+          
+    txs = session.query(Transaction).all()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---------- coverage: platform darwin, python 3.12.6-final-0 ----------
+Name                                   Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------
+auth.py                                   22      1    95%   34
+main.py                                  229     26    89%   57, 72, 101-102, 141, 158-160, 191-203, 308, 330, 341, 407, 468, 494, 501, 508, 514, 519
+models.py                                 24      0   100%
+schemas.py                                69      1    99%   52
+tests/conftest.py                         53      0   100%
+tests/test_auth_endpoints.py             188      1    99%   301
+tests/test_auth_utils.py                  29      1    97%   9
+tests/test_category_endpoints.py          39      0   100%
+tests/test_date_utils.py                  24      0   100%
+tests/test_expense_classification.py      26      0   100%
+tests/test_expense_endpoints.py           83      2    98%   5, 11
+tests/test_filter_transactions.py         43      0   100%
+tests/test_health.py                       7      0   100%
+tests/test_income_endpoints.py            39      0   100%
+tests/test_integration_flows.py           64      4    94%   13, 28-29, 49
+tests/test_postgres_api.py                48      2    96%   69-70
+tests/test_postgres_smoke.py              41      2    95%   34-36
+tests/test_schemas.py                     29      0   100%
+tests/test_summary_logic.py               37      0   100%
+tests/test_utils.py                       38      0   100%
+utils.py                                  54      0   100%
+--------------------------------------------------------------------
+TOTAL                                   1186     40    97%
+
+======================= 80 passed, 35 warnings in 3.88s ========================

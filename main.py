@@ -7,7 +7,7 @@ from typing import Dict
 from utils import compute_summary
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlmodel import SQLModel, create_engine, Session, select
@@ -43,7 +43,8 @@ from auth import (
 # I’m giving the app a title and version, for documentation purposes.
 # It will handle all HTTP requests (GET, POST, DELETE, etc.)
 app = FastAPI(title="Expense Tracker ", version="0.1.0")
-instrumentator = Instrumentator().instrument(app)
+# Prometheus metrics
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
@@ -51,10 +52,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 # Without this, the browser can’t load the front-end files.
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-#API endpoint for quick health checks
-@app.get("/")
+#Root route, redirect browser to login page
+@app.get("/", include_in_schema=False)
 def root():
-    return {"message": "Expense Tracker API is running. See /health for status."}
+    return RedirectResponse(url="/login")
 
 @app.get("/health")
 def health():
@@ -64,6 +65,7 @@ def health():
         "app": "expense-tracker",
         "version": "0.1.0",
     }
+
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./expense.db")
 if DATABASE_URL.startswith("sqlite"):
@@ -166,7 +168,6 @@ def on_startup() -> None:
     - Wait for Postgres to be ready
     - Create tables
     - Seed default categories
-    - Expose Prometheus /metrics
     """
     retries = 10
     delay = 2  # seconds
@@ -180,9 +181,6 @@ def on_startup() -> None:
             # Seed categories
             with Session(engine) as session:
                 seed_default_categories(session)
-
-            # Expose Prometheus metrics at /metrics when app start
-            instrumentator.expose(app)
 
             # Ensure database tables exist at startup.
 
