@@ -5,74 +5,47 @@ from typing import Any, Iterable, Optional
 
 from models import Transaction
 
+from decimal import Decimal, ROUND_HALF_UP
+from typing import Iterable
+
+from models import Transaction
+
+
 def _round_money(dec: Decimal) -> float:
     """Round a Decimal to 2 decimal places with HALF_UP (normal money rounding)."""
     return float(dec.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
-def compute_summary(
-    incomes_or_transactions: Iterable[Any],
-    expenses: Optional[Iterable[Any]] = None,
-) -> dict[str, float]:
+
+def compute_summary(transactions: Iterable[Transaction]) -> dict[str, float]:
     """
-    Backwards-compatible summary helper.
+    Aggregate totals for income, expenses, and balance.
 
-    Two supported calling styles:
-
-    1) Old style (used by the original tests):
-
-        compute_summary(income_amounts, expense_amounts)
-
-       where both arguments are iterables of numbers (ints / floats / Decimals).
-
-    2) New style (your refactor):
-
-        compute_summary(transactions)
-
-       where transactions is an iterable of Transaction objects with
-       .type ("income"/"expense") and .amount.
+    Returns keys that the tests expect:
+      - total_income
+      - total_expenses
+      - balance
     """
-
     income_total_dec = Decimal("0")
     expense_total_dec = Decimal("0")
 
-    # --- Mode 1: called with TWO arguments -> old behaviour ---
-    if expenses is not None:
-        for amt in incomes_or_transactions:
-            income_total_dec += Decimal(str(amt))
-        for amt in expenses:
-            expense_total_dec += Decimal(str(amt))
-
-    # --- Mode 2: called with ONE argument -> new Transaction-based behaviour ---
-    else:
-        transactions = incomes_or_transactions
-        for t in transactions:
-            # defensive: support both Transaction objects and simple dicts
-            t_type = getattr(t, "type", None) or getattr(t, "transaction_type", None) \
-                     or (t.get("type") if isinstance(t, dict) else None)
-            t_amount = getattr(t, "amount", None) or (t.get("amount") if isinstance(t, dict) else None)
-
-            if t_amount is None or t_type is None:
-                continue  # ignore broken records instead of crashing
-
-            if t_type == "income":
-                income_total_dec += Decimal(str(t_amount))
-            elif t_type == "expense":
-                expense_total_dec += Decimal(str(t_amount))
+    for t in transactions:
+        if t.type == "income":
+            income_total_dec += Decimal(t.amount)
+        elif t.type == "expense":
+            expense_total_dec += Decimal(t.amount)
 
     # money-safe rounding
-    income_total = _round_money(income_total_dec)
-    expense_total = _round_money(expense_total_dec)
-    balance = income_total - expense_total
+    total_income = _round_money(income_total_dec)
+    total_expenses = _round_money(expense_total_dec)
 
-    balance_dec = Decimal(str(balance))
-    balance_rounded = _round_money(balance_dec)
+    balance = total_income - total_expenses
+    balance_rounded = _round_money(Decimal(str(balance)))
 
     return {
-        "income_total": income_total,
-        "expense_total": expense_total,
+        "total_income": total_income,
+        "total_expenses": total_expenses,
         "balance": balance_rounded,
     }
-
 
 def normalize_iso_date(value: Any) -> dt.date:
     """Normalize a value to a date or raise a ValueError."""
