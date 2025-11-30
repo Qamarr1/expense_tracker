@@ -1,10 +1,8 @@
 /**
  * expenses.js
- * - Ensures canonical categories
- * - No duplicate rows on edit (PATCH when editingId != null)
- * - Accepts dd/mm/yyyy or yyyy-mm-dd; blocks future dates
- * - Newest -> Oldest; small bar chart stays in sync
- * - Adds: stats, filters, CSV export
+ * Orchestrates expense CRUD, filtering, chart updates, and inline validation.
+ * Key behaviors: keep categories in sync, block invalid input early,
+ * respect date filters (dd/mm/yyyy or yyyy-mm-dd), and keep list/chart aligned.
  */
 
 if (window.__EXPENSES_APP_INITIALIZED__) {
@@ -13,7 +11,7 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
   window.__EXPENSES_APP_INITIALIZED__ = true;
 
 (function () {
-  // ---- helpers ----
+  // helpers 
   const $ = (s) => document.querySelector(s);
   const money = (n) => (+n || 0).toLocaleString(undefined, { style: "currency", currency: "EUR" });
   const toNum = (x) => (typeof x === "string" ? parseFloat(x) : +x || 0);
@@ -49,7 +47,32 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
 
   const LARGE_EXPENSE_THRESHOLD = 500;
 
-  // ---- UI pieces ----
+  // Convert dd/mm/yyyy or ISO to Date; returns null on bad input.
+  function parseFilterDate(str) {
+    if (!str) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      const d = new Date(str);
+      return isNaN(d) ? null : d;
+    }
+    const parts = str.split("/");
+    if (parts.length === 3) {
+      const [d, m, y] = parts.map((p) => parseInt(p, 10));
+      if (!d || !m || !y) return null;
+      const dt = new Date(y, m - 1, d);
+      return isNaN(dt) ? null : dt;
+    }
+    return null;
+  }
+
+  // Guard rails: only allow ranges where from <= to (or missing)
+  function isValidDateRange(fromStr, toStr) {
+    const from = parseFilterDate(fromStr);
+    const to = parseFilterDate(toStr);
+    if (!from || !to) return true;
+    return from <= to;
+  }
+
+  //  UI pieces 
   const listEl = $("#expense-list");
   const btnRefresh = $("#refresh");
   const btnExport = $("#export-expenses");
@@ -74,12 +97,23 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
   const PENCIL_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92L14.06 7.52l.92.92L5.92 19.58zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`;
   const TRASH_SVG  = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12v13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7zm3-4h6l1 1h4v2H4V4h4l1-1zm1 6h2v9h-2V9zm4 0h2v9h-2V9z"/></svg>`;
 
+  function showExpenseError(message) {
+    if (!errorEl) return;
+    errorEl.textContent = message;
+    errorEl.classList.remove("hidden");
+  }
+
+  function clearExpenseError() {
+    if (!errorEl) return;
+    errorEl.textContent = "";
+    errorEl.classList.add("hidden");
+  }
+
   // categories
   const CANONICAL = [
     "Bills & Utilities","Education","Entertainment","Food & Dining","Gifts","Groceries","Health & Medical",
     "Insurance","Other","Personal Care","Savings","Shopping","Subscriptions","Transport","Travel",
   ];
-  const HIDE = new Set(["bills", "food", "shopping"]);
 
   function catEmoji(name = "") {
     const k = name.toLowerCase();
@@ -101,6 +135,7 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
   }
 
   async function ensureCanonical() {
+    // Seed any missing canonical categories on the backend.
     const have = new Set((await getJSON("/api/categories", [])).map(c => c.name));
     for (const n of CANONICAL) {
       if (!have.has(n)) {
@@ -121,24 +156,10 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
   let tippingExpenseId = null;   // the single expense that pushed you over income
 
   async function fillSelect() {
+    // Load all categories and populate the dropdown (sorted alphabetically).
     await ensureCanonical();
-    const all = await getJSON("/api/categories", []);
-    const byLower = new Map();
-    all.forEach(c => {
-      const k = (c.name || "").toLowerCase();
-      if (!byLower.has(k)) byLower.set(k, []);
-      byLower.get(k).push(c);
-    });
-    const final = [];
-    for (const name of CANONICAL) {
-      const low = name.toLowerCase();
-      if (HIDE.has(low)) continue;
-      const group = byLower.get(low);
-      if (!group || !group.length) continue;
-      const exact = group.find(g => g.name === name);
-      final.push(exact || group[0]);
-    }
-    final.sort((a, b) => a.name.localeCompare(b.name));
+    const final = (await getJSON("/api/categories", [])).slice()
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     categories = final;
     inpCategory.innerHTML = [
       `<option value="">Select a category…</option>`,
@@ -147,6 +168,7 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
   }
 
   function openModal(row = null) {
+    // Show modal; if row provided, preload values for edit.
     modal.style.display = "flex";
     modal.setAttribute("aria-hidden", "false");
 
@@ -172,11 +194,13 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
   }
 
   function closeModal() {
+    // Hide modal and reset aria state.
     modal.style.display = "none";
     modal.setAttribute("aria-hidden", "true");
   }
 
   function renderList(rowsRaw) {
+    // Render expense list (newest first) with optional warnings.
     const rows = (rowsRaw || []).sort((a, b) => parseISO(b.date) - parseISO(a.date));
     listEl.innerHTML = rows.length ? rows.map(r => {
       const cat = categories.find(c => c.id === r.category_id);
@@ -232,7 +256,10 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
         if (act === "del") {
           if (!confirm("Delete this expense permanently?\n\nThis action cannot be undone.")) return;
           const res = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
-          if (!res.ok) return alert("Delete failed: " + (await httpText(res)));
+          if (!res.ok) {
+            const msg = await httpText(res);
+            return showExpenseError("Delete failed: " + msg);
+          }
           loadAll();
         }
       };
@@ -240,6 +267,7 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
   }
 
   function renderBar(items) {
+    // Draw bar chart for last 10 expenses by date.
     const cv = document.getElementById("expense-line");
     if (!cv) return;
     const last10 = (items || [])
@@ -265,12 +293,17 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
     const toVal = inpTo?.value || "";
     const q = (inpSearch?.value || "").trim().toLowerCase();
 
+    const fromDate = parseFilterDate(fromVal);
+    const toDate = parseFilterDate(toVal);
+
     return (allRows || []).filter(r => {
       if (!r.date) return false;
-      const d = r.date;
+      const dIso = r.date;
+      const dObj = parseISO(dIso);
+      if (isNaN(dObj)) return false;
 
-      if (fromVal && d < fromVal) return false;
-      if (toVal && d > toVal) return false;
+      if (fromDate && dObj < fromDate) return false;
+      if (toDate && dObj > toDate) return false;
 
       if (q) {
         const name = (r.name || "").toLowerCase();
@@ -282,6 +315,15 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
   }
 
   function applyExpenseFiltersAndRender() {
+    const fromVal = inpFrom?.value || "";
+    const toVal = inpTo?.value || "";
+    if (!isValidDateRange(fromVal, toVal)) {
+      alert("From date must be earlier than or equal to To date.");
+      renderBar([]);
+      renderList([]);
+      return;
+    }
+
     const rows = getFilteredExpenseRows();
     renderBar(rows);
     renderList(rows);
@@ -289,12 +331,12 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
 
   function exportExpensesCSV() {
     if (!allRows.length) {
-      alert("No expense data to export yet.");
+      showExpenseError("No expense data to export yet.");
       return;
     }
     const rows = getFilteredExpenseRows();
     if (!rows.length) {
-      alert("No expenses match the current filters.");
+      showExpenseError("No expenses match the current filters.");
       return;
     }
 
@@ -412,6 +454,7 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
   }
 
   async function saveExpense() {
+    // Validate, then create or update an expense record.
     const name   = (inpName.value || "").trim();
     const amount = parseFloat(inpAmount.value);
     const date   = toISODate(inpDate.value);
@@ -433,7 +476,10 @@ if (window.__EXPENSES_APP_INITIALIZED__) {
       headers: { "Content-Type": "application/json", accept: "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) return alert("Save failed: " + (await httpText(res)));
+    if (!res.ok) {
+      const msg = await httpText(res);
+      return alert("Save failed: " + msg);
+    }
 
     closeModal();
     editingId = null;

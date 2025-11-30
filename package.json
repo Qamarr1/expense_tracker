@@ -1,0 +1,19 @@
+{
+  "name": "expense_tracker",
+  "version": "1.0.0",
+  "description": "A lightweight personal finance tracker built with FastAPI and SQLite. Includes a modern UI and helps users visualize income and expenses using charts and summaries.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
+

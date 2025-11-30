@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'expense-tracker-local'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['localhost:8000']
+
+      - targets: ['moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net']

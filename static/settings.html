@@ -1,0 +1,96 @@
+<!-- Settings UI for MoneyFlow: tabbed username/password updates + logout -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Settings · MoneyFlow</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand-min">MoneyFlow</div>
+    <nav class="nav">
+      <a class="nav-item" href="/dashboard">Dashboard</a>
+      <a class="nav-item" href="/income-ui">Income</a>
+      <a class="nav-item" href="/expenses-ui">Expenses</a>
+      <a class="nav-item active" href="/settings-ui">Settings</a>
+      <a class="nav-item" href="/docs" target="_blank">API Docs</a>
+    </nav>
+    <div class="sidebar-foot">v1.0</div>
+  </aside>
+
+  <main class="main">
+    <header>
+      <h1>Settings</h1>
+    </header>
+
+    <section class="card" id="settings-card">
+      <p style="color: var(--muted); font-size: 0.9rem; margin-bottom: 14px;">
+        Logged in as
+        <span id="settings-username-value" style="font-weight: 600; color: var(--text);">
+          Not logged in
+        </span>
+      </p>
+
+      <!-- Main vertical buttons -->
+      <div id="settings-main-buttons" style="display: flex; flex-direction: column; gap: 8px; max-width: 260px; align-items: stretch;">
+        <button id="btn-change-username" class="btn btn-primary" type="button">
+          Change username
+        </button>
+        <button id="btn-change-password" class="btn btn-primary" type="button">
+          Change password
+        </button>
+        <button id="btn-logout" class="btn" type="button">
+          Log out
+        </button>
+      </div>
+
+      <!-- Change username panel -->
+      <div id="panel-username" style="display: none; margin-top: 16px; max-width: 420px;">
+        <h3 style="margin: 0 0 8px; font-size: 1rem;">Change username</h3>
+
+        <label style="display:block; margin-bottom:6px; font-size:.9rem; color:var(--muted);">
+          New username
+        </label>
+        <input id="new-username" class="input input-sm" type="text" placeholder="Enter new username">
+
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button id="btn-save-username" class="btn btn-primary" type="button">
+            Update username
+          </button>
+          <button id="btn-back-username" class="btn" type="button">
+            Back
+          </button>
+        </div>
+      </div>
+
+      <!-- Change password panel -->
+      <div id="panel-password" style="display: none; margin-top: 16px; max-width: 420px;">
+        <h3 style="margin: 0 0 8px; font-size: 1rem;">Change password</h3>
+
+        <label style="display:block; margin-bottom:6px; font-size:.9rem; color:var(--muted);">
+          Current password
+        </label>
+        <input id="current-password" class="input input-sm" type="password" autocomplete="current-password">
+
+        <label style="display:block; margin:10px 0 6px; font-size:.9rem; color:var(--muted);">
+          New password
+        </label>
+        <input id="new-password" class="input input-sm" type="password" autocomplete="new-password">
+
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button id="btn-save-password" class="btn btn-primary" type="button">
+            Update password
+          </button>
+          <button id="btn-back-password" class="btn" type="button">
+            Back
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/settings.js"></script>
+</body>
+</html>

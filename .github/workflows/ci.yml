@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, assignment-2 ]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: app_user
+          POSTGRES_PASSWORD: app_pass
+          POSTGRES_DB: expense_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U app_user -d expense_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      POSTGRES_TEST_URL: postgresql+psycopg2://app_user:app_pass@localhost:5432/expense_db
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests with coverage (fail if < 70%)
+        run: |
+          pytest --cov=./ --cov-report=term-missing --cov-fail-under=70
+
+      - name: Build Docker image
+        run: |
+          docker build -t expense-tracker-api .

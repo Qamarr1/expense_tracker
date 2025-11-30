@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login – Expense Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <script defer src="/static/auth.js"></script>
+</head>
+<body class="auth-body">
+  <div class="auth-shell">
+    <div class="card auth-card">
+      <div class="auth-logo">
+        <img src="/static/img/undraw_progress-tracking_9m3o.svg" alt="Expense Tracker logo">
+      </div>
+
+      <h1 class="auth-title">Welcome to MoneyFlow</h1>
+      <p class="auth-subtitle">Track your spending. Stay in control.</p>
+
+      <form id="auth-form" class="auth-form">
+        <div class="auth-form-field">
+          <label for="username" class="auth-label">Username</label>
+          <input
+            id="username"
+            name="username"
+            type="text"
+            class="input"
+            autocomplete="username"
+            required
+          />
+        </div>
+
+        <div class="auth-form-field">
+          <label for="password" class="auth-label">Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            class="input"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+
+        <button type="submit" id="auth-submit" class="btn btn-primary auth-submit">
+          Log in
+        </button>
+
+        <p id="auth-error" class="auth-error" style="display:none;"></p>
+      </form>
+
+      <p class="auth-toggle">
+        <span id="toggle-text">Don’t have an account?</span>
+        <button type="button" id="toggle-mode" class="link-button">
+          Sign up
+        </button>
+      </p>
+    </div>
+  </div>
+
+  <script src="/static/auth.js"></script>
+</body>
+</html>

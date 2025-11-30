@@ -10,11 +10,12 @@
 <body>
   <!-- Sidebar (same look as dashboard) -->
   <aside class="sidebar">
-    <div class="brand-min">Expense Tracker</div>
+    <div class="brand-min">MoneyFlow</div>
     <nav class="nav">
-      <a class="nav-item" href="/dashboard" data-nav="dashboard">Dashboard</a>
-      <a class="nav-item" href="/income-ui" data-nav="income">Income</a>
-      <a class="nav-item active" href="/expenses-ui" data-nav="expenses">Expense</a>
+      <a class="nav-item" href="/dashboard">Dashboard</a>
+      <a class="nav-item" href="/income-ui">Income</a>
+      <a class="nav-item active" href="/expenses-ui">Expenses</a>
+      <a class="nav-item" href="/settings-ui">Settings</a>
       <a class="nav-item" href="/docs" target="_blank">API Docs</a>
     </nav>
     <div class="sidebar-foot">v1.0</div>
@@ -67,15 +68,26 @@
 
       <!-- Filters row -->
       <div class="section-head" style="margin-top:10px;margin-bottom:8px;">
-        <div class="filters-row">
-          <input id="expenses-from" class="input input-sm" type="date" />
-          <input id="expenses-to" class="input input-sm" type="date" />
-          <input id="expenses-search" class="input input-sm input-search-wide" type="text"
-                 placeholder="Search by name or note…" />
-          <button id="clear-expenses-filters" class="btn"
-                  style="padding:6px 12px;font-size:0.8rem;">
-            Reset
-          </button>
+        <div class="filters-container">
+
+          <div class="date-filter-group">
+            <label for="expenses-from" class="filter-label">From</label>
+            <input id="expenses-from" type="date" class="input input-sm" />
+          </div>
+
+          <div class="date-filter-group">
+            <label for="expenses-to" class="filter-label">To</label>
+            <input id="expenses-to" type="date" class="input input-sm" />
+          </div>
+
+          <input
+              id="expenses-search"
+              type="text"
+              class="input input-sm input-search-wide"
+              placeholder="Search by name or note…"
+          />
+
+          <button id="clear-expenses-filters" class="btn">Reset</button>
         </div>
       </div>
 
@@ -111,6 +123,8 @@
         </label>
       </div>
 
+      <p id="expense-form-error" class="form-error hidden"></p>
+
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px;">
         <button id="cancel-exp-modal" class="btn">Cancel</button>
         <button id="save-expense" class="btn btn-primary">Save</button>
@@ -119,6 +133,6 @@
   </div>
 
   <script src="/static/icons.js"></script>
-  <script src="/static/expenses.js?v=20"></script>
+  <script src="/static/expenses.js?v=22"></script>
 </body>
 </html>
