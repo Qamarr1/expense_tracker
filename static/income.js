@@ -1,8 +1,7 @@
 /**
- * income.js (simple & safe)
- * - No duplicate rows on edit (uses PATCH when editingId != null)
- * - Accepts dd/mm/yyyy or yyyy-mm-dd; blocks future dates
- * - Newest -> Oldest; small bar chart stays in sync
+ * income.js
+ * Handles income CRUD, filtering, stats, and chart rendering with inline validation.
+ * Accepts dd/mm/yyyy or yyyy-mm-dd, blocks future dates, and keeps list/chart in sync.
  */
 
 if (window.__INCOME_APP_INITIALIZED__) {
@@ -11,7 +10,7 @@ if (window.__INCOME_APP_INITIALIZED__) {
   window.__INCOME_APP_INITIALIZED__ = true;
 
 (function () {
-  // ---- helpers ----
+  // helpers
   const $ = (s) => document.querySelector(s);
   const money = (n) => (+n || 0).toLocaleString(undefined, { style: "currency", currency: "EUR" });
   const toNum = (x) => (typeof x === "string" ? parseFloat(x) : +x || 0);
@@ -39,6 +38,31 @@ if (window.__INCOME_APP_INITIALIZED__) {
     const y = t.getFullYear(), m = String(t.getMonth() + 1).padStart(2, "0"), d = String(t.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }
+
+  // Convert dd/mm/yyyy or ISO to Date; returns null on bad input.
+  function parseFilterDate(str) {
+    if (!str) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      const d = new Date(str);
+      return isNaN(d) ? null : d;
+    }
+    const m = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (m) {
+      const [_, dd, mm, yy] = m;
+      const d = new Date(parseInt(yy, 10), parseInt(mm, 10) - 1, parseInt(dd, 10));
+      return isNaN(d) ? null : d;
+    }
+    return null;
+  }
+
+  // Guard rails: only allow ranges where from <= to (or missing)
+  function isValidDateRange(fromStr, toStr) {
+    const from = parseFilterDate(fromStr);
+    const to = parseFilterDate(toStr);
+    if (!from || !to) return true;
+    return from <= to;
+  }
+
   function toISODate(s) {
     if (!s) return "";
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
@@ -46,7 +70,7 @@ if (window.__INCOME_APP_INITIALIZED__) {
     return m ? `${m[3]}-${m[2]}-${m[1]}` : s;
   }
 
-  // ---- elements ----
+  // elements 
   const listEl = $("#income-list");
   const btnRefresh = $("#refresh");
   const btnExport = $("#export-income");
@@ -66,6 +90,7 @@ if (window.__INCOME_APP_INITIALIZED__) {
   const inpAmount = $("#in-amount");
   const inpDate = $("#in-date");
   const inpNote = $("#in-note");
+  const errorEl = document.getElementById("income-form-error");
 
   const PENCIL_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92L14.06 7.52l.92.92L5.92 19.58zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`;
   const TRASH_SVG  = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12v13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7zm3-4h6l1 1h4v2H4V4h4l1-1zm1 6h2v9h-2V9zm4 0h2v9h-2V9z"/></svg>`;
@@ -75,6 +100,8 @@ if (window.__INCOME_APP_INITIALIZED__) {
   let allRows = [];      // full dataset from API
 
   function openModal(row = null) {
+    // keep inline error cleared when opening
+    clearIncomeError();
     modal.style.display = "flex";
     modal.setAttribute("aria-hidden", "false");
 
@@ -100,6 +127,20 @@ if (window.__INCOME_APP_INITIALIZED__) {
   function closeModal() {
     modal.style.display = "none";
     modal.setAttribute("aria-hidden", "true");
+    clearIncomeError();
+  }
+
+
+  function showIncomeError(message) {
+    if (!errorEl) return;
+    errorEl.textContent = message;
+    errorEl.classList.remove("hidden");
+  }
+
+  function clearIncomeError() {
+    if (!errorEl) return;
+    errorEl.textContent = "";
+    errorEl.classList.add("hidden");
   }
 
   function renderList(rowsRaw) {
@@ -132,7 +173,10 @@ if (window.__INCOME_APP_INITIALIZED__) {
         if (act === "del") {
           if (!confirm("Delete this income permanently?\n\nThis action cannot be undone.")) return;
           const res = await fetch(`/api/income/${id}`, { method: "DELETE" });
-          if (!res.ok) return alert("Delete failed: " + (await httpText(res)));
+          if (!res.ok) {
+            const msg = await httpText(res);
+            return showIncomeError("Delete failed: " + msg);
+          }
           loadAll();
         }
       };
@@ -165,12 +209,17 @@ if (window.__INCOME_APP_INITIALIZED__) {
     const toVal = inpTo?.value || "";
     const q = (inpSearch?.value || "").trim().toLowerCase();
 
+    const fromDate = parseFilterDate(fromVal);
+    const toDate = parseFilterDate(toVal);
+
     return (allRows || []).filter(r => {
       if (!r.date) return false;
-      const d = r.date;
+      const dIso = r.date;
+      const dObj = parseISO(dIso);
+      if (isNaN(dObj)) return false;
 
-      if (fromVal && d < fromVal) return false;
-      if (toVal && d > toVal) return false;
+      if (fromDate && dObj < fromDate) return false;
+      if (toDate && dObj > toDate) return false;
 
       if (q) {
         const name = (r.name || "").toLowerCase();
@@ -182,6 +231,15 @@ if (window.__INCOME_APP_INITIALIZED__) {
   }
 
   function applyIncomeFiltersAndRender() {
+    const fromVal = inpFrom?.value || "";
+    const toVal = inpTo?.value || "";
+    if (!isValidDateRange(fromVal, toVal)) {
+      alert("From date must be earlier than or equal to To date.");
+      renderBar([]);
+      renderList([]);
+      return;
+    }
+
     const rows = getFilteredIncomeRows();
     renderBar(rows);
     renderList(rows);
@@ -189,12 +247,12 @@ if (window.__INCOME_APP_INITIALIZED__) {
 
   function exportIncomeCSV() {
     if (!allRows.length) {
-      alert("No income data to export yet.");
+      showIncomeError("No income data to export yet.");
       return;
     }
     const rows = getFilteredIncomeRows();
     if (!rows.length) {
-      alert("No income matches the current filters.");
+      showIncomeError("No income matches the current filters.");
       return;
     }
 
@@ -272,10 +330,12 @@ if (window.__INCOME_APP_INITIALIZED__) {
     const date   = toISODate(inpDate.value);
     const note   = (inpNote.value || "").trim() || null;
 
-    if (!name) return alert("Please enter a name.");
-    if (!amount || amount <= 0) return alert("Amount must be positive.");
-    if (!date) return alert("Please pick a date (YYYY-MM-DD).");
-    if (date > todayISO()) return alert("Date cannot be in the future.");
+    clearIncomeError();
+
+    if (!name) return showIncomeError("Please enter a name.");
+    if (!amount || amount <= 0) return showIncomeError("Amount must be positive.");
+    if (!date) return showIncomeError("Please pick a date (YYYY-MM-DD).");
+    if (date > todayISO()) return showIncomeError("Date cannot be in the future.");
 
     const payload = { name, amount, date, note };
     const url = editingId == null ? "/api/income" : `/api/income/${editingId}`;
@@ -286,7 +346,10 @@ if (window.__INCOME_APP_INITIALIZED__) {
       headers: { "Content-Type": "application/json", accept: "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) return alert("Save failed: " + (await httpText(res)));
+    if (!res.ok) {
+      const msg = await httpText(res);
+      return showIncomeError("Save failed: " + msg);
+    }
 
     closeModal();
     editingId = null;
@@ -327,15 +390,3 @@ if (window.__INCOME_APP_INITIALIZED__) {
   loadAll();
 })();
 }
-
-
-
-
-
-
-
-
-
-
-
-

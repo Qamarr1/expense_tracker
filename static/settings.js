@@ -1,6 +1,11 @@
 const TOKEN_KEY = "access_token";
 const USERNAME_KEY = "username";
 
+// Settings UI controller:
+// - toggles between main menu / username form / password form
+// - calls auth endpoints for username/password changes
+// - keeps localStorage token/username in sync
+
 document.addEventListener("DOMContentLoaded", () => {
 
   function getAccessToken() {
@@ -11,11 +16,13 @@ document.addEventListener("DOMContentLoaded", () => {
     return localStorage.getItem(USERNAME_KEY) || "";
   }
 
+  // Build Authorization header if we have a token
   function getAuthHeaders() {
     const token = getAccessToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
+  // Paint the "Logged in as" label
   function updateSettingsUsernameLabel() {
     const label = document.getElementById("settings-username-value");
     if (!label) return;
@@ -50,6 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function showMainButtons() {
+    // Return to main menu view
     mainButtons.style.display = "flex";
     if (panelUsername) panelUsername.style.display = "none";
     if (panelPassword) panelPassword.style.display = "none";
@@ -57,6 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function showUsernamePanel() {
+    // Open username form, hide others
     mainButtons.style.display = "none";
     if (panelUsername) panelUsername.style.display = "block";
     if (panelPassword) panelPassword.style.display = "none";
@@ -65,6 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function showPasswordPanel() {
+    // Open password form, hide others
     mainButtons.style.display = "none";
     if (panelUsername) panelUsername.style.display = "none";
     if (panelPassword) panelPassword.style.display = "block";
