@@ -34,6 +34,44 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
+    …
+[10:33 pm, 30/11/2025] Qamar: Configure secrets and triggers so only the main branch deploys automatically.
+[10:35 pm, 30/11/2025] Qamar: name: CI
+
+on:
+  push:
+    branches: [ main, assignment-2 ]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: app_user
+          POSTGRES_PASSWORD: app_pass
+          POSTGRES_DB: expense_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U app_user -d expense_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      POSTGRES_TEST_URL: postgresql+psycopg2://app_user:app_pass@localhost:5432/expense_db
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
           python-version: "3.12"
 
       - name: Install dependencies
@@ -45,9 +83,39 @@ jobs:
         run: |
           pytest --cov=./ --cov-report=term-missing --cov-fail-under=70
 
-      - name: Build Docker image
+  deploy:
+    needs: test-and-build          # only run if tests pass
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'   # only on main branch
+
+    env:
+      ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+      ACR_NAME: ${{ secrets.ACR_NAME }}
+      WEBAPP_NAME: ${{ secrets.WEBAPP_NAME }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (service principal)
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build Docker image for ACR
         run: |
-          docker build -t expense-tracker-api .
+          IMAGE_TAG=${{ github.sha }}
+          IMAGE="$ACR_LOGIN_SERVER/expense_tracker:$IMAGE_TAG"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+          docker build -t "$IMAGE" .
 
+      - name: Push image to ACR
+        run: |
+          az acr login --name "$ACR_NAME"
+          docker push "$IMAGE"
 
-
+      - name: Deploy image to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.WEBAPP_NAME }}
+          images: ${{ env.IMAGE }}
