@@ -10,42 +10,25 @@ from typing import Iterable
 
 from models import Transaction
 
+from decimal import Decimal
+from typing import Dict, Iterable
 
-def _round_money(dec: Decimal) -> float:
-    """Round a Decimal to 2 decimal places with HALF_UP (normal money rounding)."""
-    return float(dec.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+def _to_float_sum(values: Iterable[Decimal | float | int]) -> float:
+    return float(sum(values) if values else 0)
 
-
-def compute_summary(transactions: Iterable[Transaction]) -> dict[str, float]:
-    """
-    Aggregate totals for income, expenses, and balance.
-
-    Returns keys that the tests expect:
-      - total_income
-      - total_expenses
-      - balance
-    """
-    income_total_dec = Decimal("0")
-    expense_total_dec = Decimal("0")
-
-    for t in transactions:
-        if t.type == "income":
-            income_total_dec += Decimal(t.amount)
-        elif t.type == "expense":
-            expense_total_dec += Decimal(t.amount)
-
-    # money-safe rounding
-    total_income = _round_money(income_total_dec)
-    total_expenses = _round_money(expense_total_dec)
-
+def compute_summary(
+    incomes: Iterable[Decimal | float | int],
+    expenses: Iterable[Decimal | float | int],
+) -> Dict[str, float]:
+    total_income = _to_float_sum(list(incomes))
+    total_expenses = _to_float_sum(list(expenses))
     balance = total_income - total_expenses
-    balance_rounded = _round_money(Decimal(str(balance)))
-
     return {
-        "total_income": total_income,
-        "total_expenses": total_expenses,
-        "balance": balance_rounded,
+        "total_income": round(total_income, 2),
+        "total_expenses": round(total_expenses, 2),
+        "balance": round(balance, 2),
     }
+
 
 def normalize_iso_date(value: Any) -> dt.date:
     """Normalize a value to a date or raise a ValueError."""
