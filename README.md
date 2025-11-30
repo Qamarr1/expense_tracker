@@ -1,113 +1,183 @@
-#  Expense Tracker
+# MoneyFlow — Expense Tracker (FastAPI + Docker + CI/CD + Monitoring)
 
-A lightweight personal finance tracker built with **FastAPI** and **SQLite**, designed to help university students and young professionals easily track their income and expenses.  
-The app provides a clean dashboard with charts and summaries to help users understand their spending habits and manage their budgets more effectively.
+MoneyFlow is a full-stack FastAPI application for tracking personal income and expenses. It includes authentication, dashboards, charts, filtering, and financial summaries, backed by SQLModel and a production-ready CI/CD pipeline.
 
----
+## Core  Features
+- Add, edit, delete income and expense entries
+- Category management (default + custom)
+- Financial summary: total income, total expenses, balance
+- 30/60-day visual trends (Chart.js)
+- Filtering: date range, search, category
+- Warnings: large expense and exceeds balance
+- Dark, responsive UI with redesigned layout
 
-##  Overview
+### Authentication
+- Register, login, JWT-based session
+- Change username and password
+- Logout
+- Secure password hashing (Argon2)
 
-The **Expense Tracker** allows users to:
-- Add, update, and delete **income** and **expense** records  
-- View total income, expenses, and remaining balance  
-- Visualize spending categories using **Chart.js**  
-- See recent transactions on a clean and responsive dashboard  
+### DevOps
+- Automated testing pipeline (unit + integration + Postgres)
+- Coverage threshold enforced (>= 70%)
+- Docker container build
+- Deployment to Azure Web App for Containers
+- Azure PostgreSQL Flexible Server as production DB
+- Prometheus metrics exposed; health check endpoint
+- Secrets stored in GitHub Actions secrets
 
-This project was developed following the **Waterfall SDLC model**, with clear phases for requirements, design, implementation, testing, and deployment.  
-It was designed to be realistic, maintainable, and scalable for future use by university students or young professionals.
+## Project Structure
+```
+expense_tracker/
+├── main.py
+├── auth.py
+├── models.py
+├── schemas.py
+├── utils.py
+├── tests/
+├── monitoring/
+├── static/
+├── reports/
+├── Screenshots/
+├── .github/workflows/
+├── package.json        
+├── package-lock.json           
+├── Dockerfile
+├── docker-compose.yml
+└── README.md
+```
+Notes:
+- `package.json` / `package-lock.json` hold the frontend toolchain (Jest config and JS unit tests).
+- `.github/workflows/` contains the CI/CD pipeline.
+- `reports/` stores coverage and CI artifacts.
+- `Screenshots/` for UI snapshots, and workflow, and azure deployments.
+- `static/` contains frontend resources (HTML, JS, CSS).
 
----
-
-##  Setup Instructions
-
-Follow these steps to run the Expense Tracker locally.
-
----
-
-###  Prerequisites
-
-Make sure you have the following installed:
-
--  **Python 3.9+**
--  **pip** (comes with Python)
--  **Git**
-
----
-
-###  Clone the Repository
-
-Open a terminal and run:
-
+## Local Development Setup
+### 1) Clone
 ```bash
 git clone https://github.com/Qamarr1/expense_tracker.git
 cd expense_tracker
+```
 
-### Create and Activate a Virtual Environment
--On macOS / Linux:
+### 2) Virtual Environment
+macOS / Linux:
+```bash
 python3 -m venv venv
 source venv/bin/activate
-
--On Windows (PowerShell):
+```
+Windows (PowerShell):
+```powershell
 python -m venv venv
 venv\Scripts\activate
+```
 
-Once activated, you should see (venv) at the start of your terminal prompt.
-
-
-## 📦 Install Dependencies
-pip install --upgrade pip then cd /path/to/the/project 
-Install the required packages from `requirements.txt`:
-
+### 3) Install Dependencies
 ```bash
+pip install --upgrade pip
 pip install -r requirements.txt
+```
 
-### Main Frameworks Used
--Library	Purpose
-  fastapi	Web framework
-  uvicorn	ASGI app runner
-  sqlmodel	ORM for SQLite
-  jinja2	HTML templating
-  python-multipart	Handles HTML forms
-  Additional libraries (like Pydantic, Starlette, and SQLAlchemy) are automatically installed as dependencies.
-
-
-##Initialize the Database
-
-No manual SQL setup is needed!
-When you first run the app, it automatically creates the database file expense.db and adds default categories like “Food”, “Transport”, etc.
-
-If you delete expense.db, the app will recreate it on startup.
-
-You can verify by checking that a file named expense.db appears in your project directory after the first run.
-
- Run the Application
-
-Start the FastAPI server:
-
+### 4) Run the Application
+```bash
 uvicorn main:app --reload
+```
 
+Key URLs:
+| Page              | URL                              |
+|-------------------|----------------------------------|
+| API root          | http://127.0.0.1:8000            |
+| Health Check      | http://127.0.0.1:8000/health     |
+| Login             | http://127.0.0.1:8000/login      |
+| Dashboard         | http://127.0.0.1:8000/dashboard  |
+| Income UI         | http://127.0.0.1:8000/income-ui  |
+| Expenses UI       | http://127.0.0.1:8000/expenses-ui|
+| API Docs          | http://127.0.0.1:8000/docs       |
+| Prometheus Metrics| http://127.0.0.1:8000/metrics    |
 
-### If your code is in a folder (e.g. /app/main.py), then:
+## Running Tests
+```bash
+pytest --cov=./
+```
+Coverage target: >= 70% (current runs ~94%). Tests cover unit, integration, PostgreSQL service, authentication, categories/transactions, utilities (summary, filtering, classification).
 
---uvicorn app.main:app --reload
+Frontend JS unit tests are configured via Jest in `package.json`:
+```bash
+npm test
+```
 
+## Production Deployment (Azure)
+The app is deployed via CI/CD to Azure Web App for Containers.
 
-### When it starts successfully, you’ll see:
---Application startup complete.
+Production URL:  
+https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net
 
+Azure endpoints:
+| Page              | URL                                                                           |
+|-------------------|-------------------------------------------------------------------------------|
+| API root          | https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net  |
+| Health            | https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net/health |
+| Login             | https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net/login |
+| Dashboard         | https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net/dashboard |
+| Income UI         | https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net/income-ui |
+| Expenses UI       | https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net/expenses-ui |
+| API Docs          | https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net/docs |
+| Prometheus Metrics| https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net/metrics |
 
-### Then visit these URLs:
+Environment variables (set in Azure Web App → Configuration → Application Settings):
+| Variable      | Value                                                    |
+|---------------|----------------------------------------------------------|
+| DATABASE_URL  | postgresql+psycopg2://USER:PASSWORD@HOST:5432/expense_db |
+| SECRET_KEY    | your-secret                                              |
+| ACR_USERNAME  | moneyflowacr                                             |
+| ACR_PASSWORD  | registry-password                                        |
+| TOKEN_URL     | /auth/login                                              |
 
- -Page	URL:
-   Health Check (API root)	http://127.0.0.1:8000
-   Dashboard	http://127.0.0.1:8000/dashboard
-   Income Page	http://127.0.0.1:8000/income-ui
-   Expenses Page	http://127.0.0.1:8000/expenses-ui
-   Interactive API Docs	http://127.0.0.1:8000/docs
+## Docker
+Build:
+```bash
+docker build -t moneyflow-api .
+```
+Run:
+```bash
+docker run -p 8000:8000 moneyflow-api
+```
 
-Stop and Deactivate
-###To stop the server, press:
--CTRL + C
+## Deployment (Azure Web App + Azure Container Registry)
+1) Build and push:
+```bash
+az acr login --name moneyflowacr
+docker build -t moneyflowacr.azurecr.io/expense_tracker:latest .
+docker push moneyflowacr.azurecr.io/expense_tracker:latest
+```
+2) Configure Azure Web App image:
+```
+moneyflowacr.azurecr.io/expense_tracker:latest
+```
+3) Set environment variables:
+```
+DATABASE_URL=postgresql+psycopg2://USERNAME:PASSWORD@HOST:5432/expense_db
+SECRET_KEY=<your-secret>
+ACR_USERNAME=moneyflowacr
+ACR_PASSWORD=<registry password>
+```
 
-To deactivate your virtual environment:
--deactivate
+## CI/CD (GitHub Actions)
+Workflow: `.github/workflows/ci.yml`
+- Trigger: push / pull_request
+- Steps: start PostgreSQL service, install deps, run tests + coverage, build Docker image
+- If branch = main: deploy to Azure Web App
+
+Pipeline steps:
+1. Start PostgreSQL service  
+2. Install dependencies  
+3. Run unit + integration tests  
+4. Enforce coverage >= 70%  
+5. Build Docker image  
+6. On main branch: login to ACR, push image, deploy to Azure Web App  
+
+## Monitoring
+- `/health` for readiness checks
+- `/metrics` for Prometheus (request counts, latency, errors, uptime)
+
+The application is production-ready, with automated testing, containerized delivery, and Azure deployment with monitoring.***
