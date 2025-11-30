@@ -103,11 +103,11 @@ def test_summary_endpoint_with_real_data():
     data = resp.json()
 
     # Assert: totals and balance match our created data
-    # income_total = 1000.50 + 200.25 = 1200.75
-    # expense_total = 100.10 + 50.00 = 150.10
+    # total_income = 1000.50 + 200.25 = 1200.75
+    # total_expenses = 100.10 + 50.00 = 150.10
     # balance = 1050.65
-    assert round(float(data["income_total"]), 2) == round(1000.50 + 200.25, 2)
-    assert round(float(data["expense_total"]), 2) == round(100.10 + 50.00, 2)
+    assert round(float(data["total_income"]), 2) == round(1000.50 + 200.25, 2)
+    assert round(float(data["total_expenses"]), 2) == round(100.10 + 50.00, 2)
     assert round(float(data["balance"]), 2) == round(
         (1000.50 + 200.25) - (100.10 + 50.00), 2
     )

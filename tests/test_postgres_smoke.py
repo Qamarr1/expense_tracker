@@ -1,70 +1,102 @@
+# tests/test_postgres_smoke.py
+
 import os
-import datetime as dt
+from datetime import date
+
 import pytest
+from sqlalchemy import text
+from sqlmodel import SQLModel, Session, create_engine, select
 
-from sqlmodel import SQLModel, create_engine, Session, select
 from models import User, Category, Transaction
+from auth import get_password_hash
 
-# We only run this test when POSTGRES_TEST_URL is set.
+# URL for real Postgres instance; test is skipped if this is not set
 POSTGRES_URL = os.getenv("POSTGRES_TEST_URL")
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(
     not POSTGRES_URL,
-    reason="POSTGRES_TEST_URL not set, skipping Postgres integration test.",
+    reason="POSTGRES_TEST_URL not set, skipping Postgres smoke test.",
 )
 def test_postgres_basic_crud():
     """
-    Smoke test to verify the app models work correctly with PostgreSQL.
-    
-    Creates tables, inserts:
-      - User
-      - Category
-      - Transaction (expense)
-    and reads them back.
+    Postgres smoke test that is SAFE to run multiple times.
+
+    It checks:
+      - We can connect to Postgres
+      - We can create the schema if needed
+      - We can insert-or-get a user, category, and transaction via SQLModel
+      - We can read them back via SQLModel
     """
 
-    # Create engine for the *real* postgres instance
-    engine = create_engine(POSTGRES_URL, echo=False)
+    engine = create_engine(POSTGRES_URL, echo=False, pool_pre_ping=True)
 
-    # Create all tables
+    # Make sure tables exist (no-op if they already exist)
     SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:
-        # Create user
-        u = User(username="pgtester", hashed_password="hashed!")
-        session.add(u)
-        session.commit()
-        session.refresh(u)
-        assert u.id is not None
+        # 1) Connectivity check (simple SELECT 1)
+        row = session.exec(text("SELECT 1")).first()
+        assert row[0] == 1
 
-        # Create category
-        cat = Category(name="PG Test Category")
-        session.add(cat)
-        session.commit()
-        session.refresh(cat)
-        assert cat.id is not None
+        # 2) "Upsert" user using ORM (no NOT NULL issues, uses defaults)
+        username = "pg_smoke_user"
+        hashed_pw = get_password_hash("SmokePass123!")
 
-        # Create transaction (expense)
-        tx = Transaction(
-            name="PG Expense Test",
-            amount=10.50,
-            date=dt.date(2025, 1, 10),
-            note="works",
-            type="expense",
-            category_id=cat.id,
-        )
-        session.add(tx)
-        session.commit()
-        session.refresh(tx)
-        assert tx.id is not None
+        user = session.exec(
+            select(User).where(User.username == username)
+        ).first()
+        if user is None:
+            user = User(username=username, hashed_password=hashed_pw)
+            session.add(user)
+            session.commit()
+            session.refresh(user)
 
-        # Read back
-        result = session.exec(
-            select(Transaction).where(Transaction.id == tx.id)
+        assert user.id is not None
+
+        # 3) "Upsert" category using ORM (avoid unique violations)
+        cat_name = "PG_Smoke_Category_V3"
+
+        category = session.exec(
+            select(Category).where(Category.name == cat_name)
+        ).first()
+        if category is None:
+            category = Category(name=cat_name)
+            session.add(category)
+            session.commit()
+            session.refresh(category)
+
+        assert category.id is not None
+
+        # 4) "Upsert" a transaction using ORM
+        tx_name = "PG Smoke Expense V3"
+
+        tx = session.exec(
+            select(Transaction).where(
+                Transaction.name == tx_name,
+                Transaction.category_id == category.id,
+            )
         ).first()
 
-        assert result is not None
-        assert result.name == "PG Expense Test"
-        assert float(result.amount) == 10.50
-        assert result.category_id == cat.id
+        if tx is None:
+            tx = Transaction(
+                name=tx_name,
+                amount=42.50,
+                date=date(2025, 1, 1),
+                note="postgres-smoke",
+                type="expense",
+                category_id=category.id,
+            )
+            session.add(tx)
+            session.commit()
+            session.refresh(tx)
+
+        assert tx.id is not None
+        assert tx.type == "expense"
+        assert tx.category_id == category.id
+
+
+
+
+

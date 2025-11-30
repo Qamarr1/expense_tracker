@@ -1,38 +1,40 @@
 """Utility functions for summary computation, dates, and classifications."""
 import datetime as dt
-from decimal import Decimal,ROUND_HALF_UP
-from typing import Any, Iterable, Optional
+from decimal import Decimal
+from typing import Any, Dict, Iterable, Optional
 
 from models import Transaction
 
-def _round_money(dec: Decimal) -> float:
-    """Round a Decimal to 2 decimal places with HALF_UP (normal money rounding)."""
-    return float(dec.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
-def compute_summary(transactions: Iterable[Transaction]) -> dict[str, float]:
-    """Aggregate totals for income, expenses, and balance."""
-    income_total_dec = Decimal("0")
-    expense_total_dec = Decimal("0")
+def _to_float_sum(values: Iterable[Decimal | float | int]) -> float:
+    """
+    Helper: safely sum Decimals / floats / ints and return a float.
+    Empty input => 0.0
+    """
+    total = sum(values) if values else 0
+    return float(total)
 
-    for t in transactions:
-        if t.type == "income":
-            income_total_dec += Decimal(t.amount)
-        elif t.type == "expense":
-            expense_total_dec += Decimal(t.amount)
 
-    # Use money-safe rounding FIRST, then compute balance from those
-    income_total = _round_money(income_total_dec)
-    expense_total = _round_money(expense_total_dec)
-    balance = income_total - expense_total
+def compute_summary(
+    incomes: Iterable[Decimal | float | int],
+    expenses: Iterable[Decimal | float | int],
+) -> Dict[str, float]:
+    """
+    Compute simple totals for income & expenses and overall balance.
 
-    # Optionally also half-up the balance to avoid weird float artifacts
-    balance_dec = Decimal(str(balance))
-    balance_rounded = _round_money(balance_dec)
+    Returns a dict with stable keys used by:
+      - /api/stats/summary
+      - tests (including Postgres API tests)
+      - the frontend dashboard
+    """
+    total_income = _to_float_sum(list(incomes))
+    total_expenses = _to_float_sum(list(expenses))
+    balance = total_income - total_expenses
 
     return {
-       "income_total": income_total,
-        "expense_total": expense_total,
-        "balance": balance_rounded,
+        "total_income": round(total_income, 2),
+        "total_expenses": round(total_expenses, 2),
+        "balance": round(balance, 2),
     }
 
 
