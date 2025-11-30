@@ -11,12 +11,12 @@
 <body>
   <!-- Sidebar (keep same structure as your app) -->
   <aside class="sidebar">
-    <div class="brand-min">MoneyFlow</div>
+    <div class="brand-min">Expense Tracker</div>
     <nav class="nav">
-      <a class="nav-item" href="/dashboard">Dashboard</a>
-      <a class="nav-item active" href="/income-ui">Income</a>
-      <a class="nav-item" href="/expenses-ui">Expenses</a>
-      <a class="nav-item" href="/settings-ui">Settings</a>
+      <a class="nav-item" href="/dashboard" data-nav="dashboard">Dashboard</a>
+      <a class="nav-item active" href="/income-ui" data-nav="income">Income</a>
+      <a class="nav-item" href="/expenses-ui" data-nav="expenses">Expenses</a>
+      <a class="nav-item" href="/settings-ui" data-nav="settings">Settings</a>
       <a class="nav-item" href="/docs" target="_blank">API Docs</a>
     </nav>
     <div class="sidebar-foot">v1.0</div>
@@ -67,9 +67,18 @@
 
       <!-- Filters -->
       <div class="section-head" style="margin-bottom:8px;">
-        <div class="filters-row">
-          <input id="income-from" class="input input-sm" type="date" />
-          <input id="income-to" class="input input-sm" type="date" />
+        <div class="filters-container">
+
+          <div class="date-filter-group">
+            <label for="income-from" class="filter-label">From</label>
+            <input id="income-from" class="input input-sm" type="date" />
+          </div>
+
+          <div class="date-filter-group">
+            <label for="income-to" class="filter-label">To</label>
+            <input id="income-to" class="input input-sm" type="date" />
+          </div>
+
           <input id="income-search" class="input input-sm input-search-wide" type="text"
             placeholder="Search by name or note…" />
           <button id="clear-income-filters" class="btn"
@@ -106,6 +115,8 @@
         </label>
       </div>
 
+      <p id="income-form-error" class="form-error hidden"></p>
+
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px;">
         <button id="cancel-inc-modal" class="btn">Cancel</button>
         <button id="save-income" class="btn btn-primary">Save</button>
@@ -117,6 +128,6 @@
   <script src="/static/icons.js"></script>
 
   <!-- Page script LAST; bump ?v when you change JS -->
-  <script src="/static/income.js?v=30"></script>
+  <script src="/static/income.js?v=31"></script>
 </body>
 </html>
