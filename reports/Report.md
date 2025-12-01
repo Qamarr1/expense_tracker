@@ -1,109 +1,297 @@
 # Expense Tracker (MoneyFlow) – CI/CD & Cloud Deployment Report
 
 ## 1. Introduction
-This report summarizes the end-to-end DevOps implementation of the MoneyFlow Expense Tracker application. The focus areas include:
-- Automated testing across unit, API, integration, and Postgres layers
-- GitHub Actions pipeline automation
-- Docker-based containerization
-- Azure deployment (Web App + ACR + PostgreSQL Flexible Server)
-- Monitoring, health checks, and observability
-- Refactoring for maintainability and reliability
+This report documents the end-to-end DevOps transformation of MoneyFlow, a full-stack Expense Tracker built with FastAPI, JavaScript, HTML/CSS, and PostgreSQL. The project started as a local SQLite app with minimal automation; it now runs as a production-ready, containerized, cloud-deployed, and continuously tested system.
 
-The goal was to transform a local FastAPI project into a production-ready, continuously tested, containerized, and cloud-deployed system.
+Goals:
+- Refactor code for maintainability and SOLID compliance.
+- Achieve strong automated testing (unit, API, integration, Postgres) with a coverage gate (>= 70%).
+- Build a CI/CD pipeline (GitHub Actions) that builds, tests, and deploys.
+- Containerize with Docker and publish images to Azure Container Registry (ACR).
+- Deploy to Azure Web App for Containers, backed by Azure PostgreSQL Flexible Server.
+- Add observability: health checks, Prometheus metrics, and logging.
 
-## 2. Testing Strategy & Quality Improvements
-### 2.1 Test Suite Structure
+## 2. Architecture Overview
+MoneyFlow is now three cooperating pieces: a stateless FastAPI backend, a managed Postgres database, and a container registry.
 
-| Layer                     | Purpose                                                                          |
-|---------------------------|----------------------------------------------------------------------------------|
-| Unit tests                | Validate individual functions (e.g., `utils.py`, `auth.py`, validation helpers)  |
-| API endpoint tests        | Verify FastAPI routes using `TestClient`                                          |
-| Integration tests (SQLite)| Exercise real workflows end-to-end (login, CRUD, categories, summary)            |
-| Postgres integration      | Run the app against a real Postgres instance in CI                               |
-| Utility tests             | Validate filtering, date normalization, classification logic                     |
+### 2.1 Textual System Diagram
+```
+┌─────────────────────┐      ┌──────────────────────────┐
+│     Developer       │      │        GitHub            │
+│  (code, commits)    │----->│ Repo + Actions Workflow  │
+└─────────────────────┘      └───────────┬──────────────┘
+                                        │
+                                        ▼
+                               ┌────────────────┐
+                               │  CI Pipeline   │
+                               │  (Tests +      │
+                               │   Coverage +   │
+                               │   Docker Build)│
+                               └───────┬────────┘
+                                       │ if main
+                                       ▼
+                              ┌───────────────────┐
+                              │ Azure Container   │
+                              │    Registry (ACR) │
+                              └─────────┬─────────┘
+                                        │
+                                        ▼
+                            ┌────────────────────────┐
+                            │ Azure Web App (Container│
+                            │  Pulls Image from ACR   │
+                            └─────────┬───────────────┘
+                                      │
+                                      ▼
+                       ┌───────────────────────────┐
+                       │ Azure PostgreSQL Flexible │
+                       │   Server (Production DB)  │
+└───────────────────────────┘
+```
 
-### 2.2 Fix: `compute_summary`
-- Tests expected the signature `compute_summary(incomes, expenses)` but the code used `compute_summary(transactions)`.
-- Refactored to a stable two-argument API with consistent keys (`total_income`, `total_expenses`, `balance`) and monetary rounding.
+### 2.2 Layered Stack (alternative view)
+```
+┌───────────────────────────┐
+│        Front-End UI        │
+│  (HTML/CSS/JS from /static)│
+└─────────────┬─────────────┘
+              │
+              ▼
+┌───────────────────────────┐
+│     FastAPI Application    │
+│  Auth, Income, Expenses,   │
+│  Categories, Summary       │
+└─────────────┬─────────────┘
+              │
+              ▼
+┌───────────────────────────┐
+│    Database (Postgres)    │
+│   SQLModel ORM interfaces  │
+└─────────────┬─────────────┘
+              │
+              ▼
+┌───────────────────────────┐
+│  Docker Container (Uvicorn)│
+└─────────────┬─────────────┘
+              │
+              ▼
+┌───────────────────────────┐
+│ Azure Deployment Pipeline  │
+│   ACR → Web App → Logs     │
+└───────────────────────────┘
+```
 
-### 2.3 Authentication Coverage
-Added tests for: register, login, wrong password, expired JWT, token for deleted user, change username, change password, and access to protected routes. This improves security confidence.
+### 2.2 Components
+- Backend: FastAPI, stateless, containerized; serves API and HTML; JWT authentication.
+- Database: Azure PostgreSQL Flexible Server; firewall rules restricted to Web App outbound IPs and developer IPs.
+- Registry: Azure Container Registry; stores versioned Docker images pushed from CI.
 
-### 2.4 Postgres Integration Tests
-- CI spins up a Postgres 15 service via GitHub Actions `services`.
-- Confirms DB readiness, table creation, and CRUD against real Postgres.
+### 2.3 High-Level System Architecture 
+```
+                            ┌──────────────────────────┐
+                            │  GitHub Repository       │
+                            │  (main + assignment-2)   │
+                            └───────────┬──────────────┘
+                                        │ (push / PR)
+                                        ▼
+                            ┌──────────────────────────┐
+                            │  GitHub Actions: CI Job  │
+                            │  - Start PostgreSQL svc  │
+                            │  - Install deps          │
+                            │  - Run 80+ tests         │
+                            │  - Enforce 70% coverage  │
+                            │  - Build Docker image    │
+                            └───────────┬──────────────┘
+                             if main    │
+                                        ▼
+                            ┌──────────────────────────┐
+                            │ Azure Container Registry │
+                            │ moneyflowacr.azurecr.io  │
+                            │ Stores expense_tracker   │
+                            │ image:latest             │
+                            └───────────┬──────────────┘
+                                        │
+                                        ▼
+                       ┌──────────────────────────────────────┐
+                       │ Azure Web App for Containers         │
+                       │ moneyflow-web-qamar                  │
+                       │ Pulls latest ACR image → runs app    │
+                       └──────────────────┬───────────────────┘
+                                          │
+                                          ▼
+                       ┌──────────────────────────────────────┐
+                       │ Azure PostgreSQL Flexible Server     │
+                       │ Production DB for all transactions   │
+                       └──────────────────────────────────────┘
+```
 
-### 2.5 Coverage
-- Coverage enforced at 70% minimum; current runs exceed 90% locally.
+### 2.4 Azure Resource Architecture
+| Resource                          | Name                     | Purpose                              |
+|-----------------------------------|--------------------------|--------------------------------------|
+| Azure Container Registry          | moneyflowacr             | Stores Docker images                 |
+| Azure Web App for Containers      | moneyflow-web-qamar      | Runs the API/UI container            |
+| Azure PostgreSQL Flexible Server  | moneyflow-postgres       | Production relational database       |
+| GitHub Actions Secrets            | ACR_LOGIN_SERVER, ACR_USERNAME, ACR_PASSWORD, AZURE_CREDENTIALS | Secure deployment |
+| GitHub Branches                   | assignment-2 (dev) → main (prod) | Controls CI/CD promotion      |
 
-## 3. Continuous Integration (CI)
-### 3.1 Pipeline Overview (GitHub Actions)
-1. Checkout  
-2. Install dependencies  
-3. Start Postgres service  
-4. Run unit + integration tests  
-5. Enforce coverage (`--cov --cov-fail-under=70`)  
-6. Docker build  
-7. On main: push image to Azure Container Registry  
-
-### 3.2 Outcome
-After the `compute_summary` fix, all tests pass, coverage stays high (~94%), and CI on branch `assignment-2` succeeds.
-
-## 4. Continuous Deployment (CD)
-### 4.1 Dockerization
-- Production Dockerfile based on `python:3.11-slim`, installs deps, runs Uvicorn in production mode, and uses build caching.
-
-### 4.2 Azure Container Registry (ACR)
-- Registry: `moneyflowacr.azurecr.io`
-- GitHub Secrets store credentials (ACR_NAME, ACR_LOGIN_SERVER, ACR_USERNAME, ACR_PASSWORD, AZURE_WEBAPP_NAME, AZURE_CREDENTIALS).
-
-### 4.3 Deployment Workflow
-- On push to `main`: build image → login to ACR → push image → deploy to Azure Web App for Containers.
-
-## 5. Cloud Architecture (Azure)
-| Component                                | Purpose                                |
-|------------------------------------------|----------------------------------------|
-| Azure Web App for Containers             | Hosts the FastAPI app                  |
-| Azure Container Registry (ACR)           | Stores Docker images                   |
-| Azure Database for PostgreSQL Flexible   | Production database                    |
-| Firewall Rules                           | Allow Web App → Postgres               |
-| Public Networking                        | Enabled for testing                    |
-
-**Production backend URL:**  
+### 2.5 Deployment URL (Production)
+All production components share:  
 https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net
 
-## 6. Monitoring & Health Checks
-### 6.1 `/health`
-Returns:
-```json
+Key endpoints: `/login`, `/dashboard`, `/income-ui`, `/expenses-ui`, `/settings-ui`, `/api/*`, `/metrics`, `/health`, `/docs`.
+
+## 3. Refactoring and Code Quality
+Key refactors applied before and during CI/CD enablement:
+- Decomposed long functions into focused helpers: `compute_summary`, `normalize_iso_date`, `filter_transactions`, `classify_expense`.
+- Standardized error handling with FastAPI `HTTPException` (400/401/404) instead of ad-hoc prints.
+- Consistent date handling (ISO-8601) via `normalize_iso_date`.
+- Authentication rewrite: Argon2 hashing, JWT with expiration, change-password and change-username flows, token refresh on username change, `/auth/me` correctness.
+- Routing/UI cleanup: coherent routes `/login`, `/dashboard`, `/income-ui`, `/expenses-ui`, `/settings-ui`; root redirects to `/login`.
+
+Other cleanups:
+- Reduced duplication in endpoints (shared helpers like `save_and_refresh`, `get_category_or_400`).
+- Clear defaults and seeding for categories to avoid flaky startup/state.
+- Stronger type hints and docstrings for maintainability.
+
+### 3.1 Backend Logic Improvements (deep detail)
+**Summary logic (compute_summary)**  
+Problem: tests expected `compute_summary(incomes, expenses)`; code assumed `compute_summary(transactions)` leading to TypeError/KeyError and inconsistent rounding.  
+Fix: explicit two-list interface, financial rounding, stable keys:
+```
 {
-  "status": "ok",
-  "timestamp": "2025-11-30T20:40:06Z",
-  "app": "expense-tracker",
-  "version": "0.1.0"
+  "income_total": ...,
+  "expense_total": ...,
+  "total_income": ...,
+  "total_expenses": ...,
+  "balance": ...
 }
 ```
-Used by Azure liveness probes, GitHub deployment checks, and Prometheus scraping.
+Benefits: deterministic, idempotent, UI/test alignment, avoids float drift, no category/timestamp dependency.
 
-### 6.2 Prometheus Metrics
-- Enabled via `prometheus_fastapi_instrumentator` with `Instrumentator().instrument(app).expose(app, endpoint="/metrics")`.
-- Exposes request count, latency histograms, error counts, and path-level performance.
+**Authentication rewrite**  
+- Argon2id hashing, JWT with expiration, `/auth/me`, change-password (requires old password), change-username (refresh JWT), OAuth2PasswordBearer 401 handling.  
+- Addresses plaintext passwords, missing session invalidation, absent update flows, and missing security tests.
 
-### 6.3 Log Streaming
-- Azure Log Stream used to debug startup issues (image arch, ACR auth, Postgres firewall). All resolved during deployment.
+**Category logic**  
+- Duplicate prevention, existence checks before expenses, ON CONFLICT handling for Postgres, validated `CategoryUpdate`.
 
-## 7. Key Improvements Summary
-### 7.1 Functional
-- Authentication (login, register, logout), change username/password, JWT session flow, and UI flow from login to dashboard.
+**Transaction logic**  
+- Validates positive amounts, ISO dates, partial updates; uses `save_and_refresh`; consistent CRUD behavior improves testability.
 
-### 7.2 Code Refactoring
-- `utils.py` rewritten for clarity and correctness; summary logic fixed; date parsing strengthened; classification rules codified.
+## 4. Testing (Unit, API, Integration, Database)
+Testing is layered to cover logic, APIs, end-to-end flows, and Postgres:
 
-### 7.3 DevOps
-- Automated tests with coverage gate, Dockerized builds, CI/CD, Azure deployment, Prometheus monitoring.
+| Layer              | Purpose                                         | Tools                    |
+|--------------------|-------------------------------------------------|--------------------------|
+| Unit               | Core logic (summary, utils, auth helpers)       | pytest                   |
+| API                | FastAPI routes via TestClient                   | pytest + TestClient      |
+| Auth               | Register, login, expired/tampered tokens        | pytest + TestClient      |
+| Integration SQLite | Full flows: register → login → CRUD → summary   | pytest + TestClient      |
+| Postgres           | Real Postgres service in CI                     | GitHub Actions services  |
 
-## 8. Conclusion
-The project now demonstrates a full DevOps lifecycle: robust code, comprehensive testing (unit/API/integration/Postgres), Docker-based CI/CD, Azure deployment, and live monitoring. It is production-ready, reproducible, testable, and fully automated.
+Key fix: `compute_summary` now accepts `(incomes, expenses)` and returns stable keys (`total_income`, `total_expenses`, `balance`), eliminating TypeErrors and aligning UI and tests. Coverage target is 70%; current runs exceed 90%.
 
-## 9. Screenshots
-There is the screenshots folder, if you want to check .
+Authentication test coverage includes: duplicate username, wrong password, invalid/expired/tampered tokens, `/auth/me` with deleted user, change-password (forces re-login), change-username (token refresh).
+
+Additional test highlights:
+- Postgres integration verifies schema, CRUD, categories, summary with real DB in CI.
+- Coverage ~93% (branch + functional paths), including error paths.
+
+## 5. Continuous Integration (CI)
+GitHub Actions workflow (`.github/workflows/ci.yml`):
+1) Checkout code
+2) Setup Python 3.12
+3) Install dependencies
+4) Start Postgres service container  
+5) Run tests with coverage gate (`--cov-fail-under=70`)  
+6) Build Docker image
+7) If branch == main: login to ACR, push image, deploy to Azure Web App
+
+Expanded pipeline rationale:
+- Postgres service container ensures parity with production DB.
+- Coverage gate prevents regressions slipping into main.
+- Docker build in CI validates the production image on every push.
+- Main-branch guard (login → push → deploy) keeps production in sync with green builds only.
+
+Pipeline diagram:
+```
+┌────────────┐     ┌───────────────┐     ┌────────────┐
+│   GitHub    │ -->│ Actions (CI)   │ --> │ Docker Build│
+└────────────┘     └──────┬────────┘     └───────┬────┘
+                           │ main branch          │
+                           ▼                      ▼
+                    ┌──────────────┐      ┌────────────────┐
+                    │   ACR Push    │      │ Azure Web App  │
+                    └──────┬───────┘      └────────────────┘
+                           │
+                           ▼
+                    ┌──────────────┐
+                    │  Production   │
+                    └──────────────┘
+```
+
+## 6. Docker & Containerization
+- Base image: `python:3.11-slim`
+- Layer caching, pinned versions, no-cache installs
+- Copies only necessary files
+- Runs Uvicorn bound to `0.0.0.0`
+- Produces a small, fast-to-build image suitable for CI and cloud deployment
+
+## 7. Azure Cloud Deployment
+Resources:
+- Azure Web App for Containers (runs the FastAPI container)
+- Azure Container Registry (stores images)
+- Azure PostgreSQL Flexible Server (production DB)
+- Networking: outbound IPs from Web App allowed in Postgres firewall; optional developer IP allow-list
+
+Firewall/debugging notes:
+- Added Web App outbound IPs to Postgres firewall.
+- Temporarily opened 0.0.0.0/0 during early testing, then tightened.
+- Resolved ACR auth failures (admin user enabled + GitHub Secrets).
+- Resolved image arch mismatch (ARM build vs AMD64 runtime) by building in CI on amd64.
+
+Environment variables (Azure Web App → Configuration):
+- `DATABASE_URL=postgresql+psycopg2://USER:PASSWORD@HOST:5432/expense_db`
+- `SECRET_KEY=<your-secret>`
+- `ACR_USERNAME=moneyflowacr`
+- `ACR_PASSWORD=<registry-password>`
+- `TOKEN_URL=/auth/login`
+
+Production URLs:
+- API root: https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net
+- Health: https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net/health
+- Login: https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net/login
+- Dashboard: https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net/dashboard
+- Income UI: https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net/income-ui
+- Expenses UI: https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net/expenses-ui
+- API Docs: https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net/docs
+- Metrics: https://moneyflow-web-qamar-crcndma3eggmd0gh.westeurope-01.azurewebsites.net/metrics
+
+## 8. Monitoring & Observability
+- `/health`: readiness/liveness for Azure probes and CI checks.
+- `/metrics`: Prometheus via `Instrumentator().instrument(app).expose(app, endpoint="/metrics")`; includes request counts, latency histograms, error rates, per-route metrics.
+- Azure Log Stream used to debug ACR auth, arch mismatches (arm64 vs amd64), Postgres connectivity, and startup sequencing.
+
+Telemetry targets:
+- Request count, latency, error rate, per-path breakdown.
+- Uptime and process metrics (via Prometheus client).
+- Health endpoint consumed by Azure Web App and CI sanity checks.
+
+## 9. Frontend and UI
+- Dark, responsive UI; clearer flows for login, dashboard, income/expenses, settings.
+- Charts for 30/60-day trends; improved filters with From/To labels.
+- Settings page: tabbed UX for username/password changes; token refresh on username change; logout.
+
+## 10. Final Improvements Summary
+- Code quality: modular utilities, standardized errors, robust authentication, cleaner structure.
+- Testing: >90% coverage across unit, API, integration (SQLite), and Postgres.
+- CI/CD: automated pipeline with coverage gate, Docker build, ACR push, Azure deployment.
+- Cloud: secure Postgres, containerized backend, end-to-end flows through UI.
+- Monitoring: health endpoints, Prometheus metrics, logs; Azure insights ready.
+
+## 11. Conclusion
+MoneyFlow moved from a local prototype to a production-grade DevOps application: scalable, testable, secure, observable, automated, and cloud-ready, demonstrating the full lifecycle from code to monitored deployment.
+
+## 12. Screenshots
+Place UI and pipeline images under `Screenshots/` and reference them here (CI runs, ACR panel, Azure Web App logs, health endpoint, UI pages, coverage reports).
+
+
